@@ -1,0 +1,94 @@
+# Development environment configuration
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/lbe?currentSchema=clearing
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USERNAME:app_clearing}
+    password: ${DB_PASSWORD:root}
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      idle-timeout: 600000 # 10 minutes
+      max-lifetime: 1800000 # 30 minutes
+      connection-timeout: 30000 # 30 seconds
+      auto-commit: true
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: clearing
+        "[jdbc.lob.non_contextual_creation]": true
+
+logging:
+  level:
+    "[com.example.clearing]": DEBUG
+    "[org.hibernate.SQL]": DEBUG
+    "[org.hibernate.type.descriptor.sql.BasicBinder]": TRACE
+  file:
+    name: logs/dev.log
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%logger{36}] [%X{sessionToken}] [%X{X-Request-ID}] - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%logger{36}] [%X{sessionToken}] [%X{X-Request-ID}] - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,beans,env,metrics,loggers
+
+shared-lib:
+  audit:
+    enabled: true
+    table-name: audit.audit_event
+    service-name: clearing-service
+    source-schema: clearing
+    hashing-algorithm: SHA-256
+    initial-hash-value: 0000000000000000000000000000000000000000000000000000000000000000
+  entity-audit:
+    enabled: true
+    table-name: audit.entity_audit_event
+    source-table: clearing_records
+    service-name: clearing-service
+    source-schema: clearing
+    hashing-algorithm: SHA-256
+    initial-hash-value: 0000000000000000000000000000000000000000000000000000000000000000
+  security:
+    enabled: true
+    permitted-paths:
+      - /actuator/**
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /error
+    introspection:
+      url: http://localhost:8080/internal/auth/introspect
+      api-key: ${INTERNAL_API_KEY:}
+      api-key-header: X-Internal-Api-Key
+    cors:
+      enabled: true
+      allowed-origins:
+        - http://localhost:5173
+        - http://localhost:5174
+      allowed-methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+        - PATCH
+      allowed-headers:
+        - "*"
+      allow-credentials: true
+      max-age: 3600
+
+  filters:
+    enabled: true
+  file-upload:
+    enabled: true
+    base-dir: /Users/rahulcharvekar/Documents/Repos/LBE/PaymentReconciliation/clearing-service/uploads/dev/
+
+server:
+  port: 8083

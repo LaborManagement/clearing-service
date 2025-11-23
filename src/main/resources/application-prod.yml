@@ -1,0 +1,144 @@
+# Production configuration (container-friendly defaults)
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://paymentreconciliation.postgres.database.azure.com:5432/paymentreconciliation_prod?sslmode=require&currentSchema=clearing}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USERNAME:app_clearing}
+    password: ${DB_PASSWORD:change-me-in-production}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 30000
+      max-lifetime: 1200000
+      leak-detection-threshold: 60000
+      connection-test-query: SELECT 1
+      auto-commit: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        "[format_sql]": false
+        jdbc:
+          "[batch_size]": 25
+          "[lob.non_contextual_creation]": true
+        "[order_inserts]": true
+        "[order_updates]": true
+        connection:
+          "[provider_disables_autocommit]": true
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: NON_NULL
+  servlet:
+    multipart:
+      max-file-size: 200MB
+      max-request-size: 200MB
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+auditing:
+  enabled: true
+
+logging:
+  level:
+    "[com.example.clearing]": INFO
+    "[org.hibernate.SQL]": WARN
+    "[org.springframework.web]": WARN
+    root: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%logger{36}] - %msg%n"
+  file:
+    name: ${LOG_FILE:/tmp/logs/clearing-service.log}
+    max-size: 100MB
+    max-history: 7
+
+file:
+  upload:
+    base-dir: ${FILE_UPLOAD_DIR:/tmp/uploads}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: prod
+
+server:
+  port: ${SERVER_PORT:8080}
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 1024
+  http2:
+    enabled: true
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: 100
+      min-spare: 5
+    max-connections: 2048
+    accept-count: 50
+    connection-timeout: 20000
+    max-http-form-post-size: 200MB
+  forward-headers-strategy: framework
+
+app:
+  jwt:
+    secret: ${APP_JWT_SECRET:}
+    issuer: user-auth-service
+    audience: clearing-services
+    expiration: 86400
+
+shared-lib:
+  security:
+    enabled: true
+    permitted-paths:
+      - /actuator/**
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-ui.html
+    introspection:
+      url: ${AUTH_SERVICE_BASE_URL:http://auth-service.payment-recon.svc.cluster.local}/internal/auth/introspect
+      api-key: ${INTERNAL_API_KEY:}
+      api-key-header: X-Internal-Api-Key
+  audit:
+    enabled: true
+    table-name: audit.audit_event
+    service-name: clearing-service
+    source-schema: clearing
+    hashing-algorithm: SHA-256
+    initial-hash-value: 0000000000000000000000000000000000000000000000000000000000000000
+  entity-audit:
+    enabled: true
+    table-name: audit.entity_audit_event
+    service-name: clearing-service
+    source-schema: clearing
+    source-table: clearing_records
+    hashing-algorithm: SHA-256
+    initial-hash-value: 0000000000000000000000000000000000000000000000000000000000000000

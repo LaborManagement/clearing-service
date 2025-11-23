@@ -1,0 +1,67 @@
+# Base configuration shared across environments
+app:
+  jwt:
+    secret: ${APP_JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+    issuer: ${APP_JWT_ISSUER:user-auth-service}
+    audience: ${APP_JWT_AUDIENCE:clearing-services}
+    expiration: ${APP_JWT_EXPIRATION:86400}
+
+spring:
+  application:
+    name: clearing-service
+  profiles:
+    active: dev
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        "[format_sql]": true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    "[com.example.clearing]": INFO
+
+file:
+  upload:
+    base-dir: uploads/
+
+# Auditing toggle
+auditing:
+  enabled: true
+
+shared-lib:
+  entity-audit:
+    enabled: true
+    table-name: audit.entity_audit_event
+    service-name: clearing-service
+    source-schema: clearing
+    source-table: clearing_records
+    hashing-algorithm: SHA-256
+    initial-hash-value: 0000000000000000000000000000000000000000000000000000000000000000
+  audit:
+    enabled: true
+    table-name: audit.audit_event
+    service-name: clearing-service
+    source-schema: clearing
+    hashing-algorithm: SHA-256
+    initial-hash-value: 0000000000000000000000000000000000000000000000000000000000000000
+  security:
+    enabled: true
+    permitted-paths:
+      - /actuator/**
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-ui.html
+    introspection:
+      url: ${AUTH_SERVICE_BASE_URL:http://auth-service:8080}/internal/auth/introspect
+      api-key: ${INTERNAL_API_KEY:}
+      api-key-header: X-Internal-Api-Key
+    rls:
+      enabled: true
