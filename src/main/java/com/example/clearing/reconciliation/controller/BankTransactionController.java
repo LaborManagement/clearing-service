@@ -1,0 +1,103 @@
+package com.example.clearing.reconciliation.controller;
+
+import com.example.clearing.reconciliation.model.BankTransactionView;
+import com.example.clearing.reconciliation.service.BankTransactionSearchService;
+import com.shared.utilities.logger.LoggerFactoryProvider;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.slf4j.Logger;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.DateTimeParseException;
+import java.util.Locale;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/v1/reconciliation/bank-transactions")
+@Tag(name = "Reconciliation Bank Transactions", description = "APIs to search bank transactions from reconciliation view")
+@SecurityRequirement(name = "Bearer Authentication")
+public class BankTransactionController {
+
+    private static final Logger log = LoggerFactoryProvider.getLogger(BankTransactionController.class);
+    private static final int MAX_PAGE_SIZE = 200;
+
+    private final BankTransactionSearchService searchService;
+
+    public BankTransactionController(BankTransactionSearchService searchService) {
+        this.searchService = searchService;
+    }
+
+    @GetMapping("/search")
+    @Operation(summary = "Search transactions in reconciliation.vw_all_bank_transactions",
+            description = "Filters by txn_date, amount, dr_cr_flag, bank_account_id, bank_account_nmbr, txn_ref; returns matching transactions without pagination metadata")
+    public ResponseEntity<?> searchTransactions(
+            @RequestParam(required = false) String txnDate,
+            @RequestParam(required = false) BigDecimal amount,
+            @RequestParam(required = false) String drCrFlag,
+            @RequestParam(required = false) Long bankAccountId,
+            @RequestParam(name = "bankAccountNmbr", required = false) String bankAccountNmbr,
+            @RequestParam(name = "bankAccountNumber", required = false) String bankAccountNumberAlias,
+            @RequestParam(required = false) String txnRef,
+            @RequestParam(defaultValue = "20") int size) {
+        try {
+            String bankAccountNumber = resolveAccountNumber(bankAccountNmbr, bankAccountNumberAlias);
+            int safeSize = Math.max(1, Math.min(size, MAX_PAGE_SIZE));
+            java.util.List<BankTransactionView> result = searchService.search(
+                    parseTxnDate(txnDate),
+                    amount,
+                    drCrFlag,
+                    bankAccountId,
+                    bankAccountNumber,
+                    txnRef,
+                    safeSize
+            );
+            // Business case expects a single transaction; return only the list (no pagination metadata)
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        } catch (Exception ex) {
+            log.error("Failed to search bank transactions", ex);
+            return ResponseEntity.internalServerError().body(Map.of("error", "Unable to search bank transactions right now"));
+        }
+    }
+
+    private String resolveAccountNumber(String bankAccountNmbr, String bankAccountNumberAlias) {
+        if (bankAccountNumberAlias != null && !bankAccountNumberAlias.trim().isEmpty()) {
+            return bankAccountNumberAlias.trim();
+        }
+        if (bankAccountNmbr != null && !bankAccountNmbr.trim().isEmpty()) {
+            return bankAccountNmbr.trim();
+        }
+        return null;
+    }
+
+    private LocalDate parseTxnDate(String raw) {
+        if (raw == null || raw.trim().isEmpty()) {
+            return null;
+        }
+        String value = raw.trim();
+        // Try ISO first (yyyy-MM-dd), then d-MMM-uuuu (e.g., 14-OCT-2025), case-insensitive.
+        DateTimeFormatter iso = DateTimeFormatter.ISO_LOCAL_DATE;
+        DateTimeFormatter dMmmYyyy = new DateTimeFormatterBuilder()
+                .parseCaseInsensitive()
+                .appendPattern("d-MMM-uuuu")
+                .toFormatter(Locale.ENGLISH);
+        for (DateTimeFormatter fmt : new DateTimeFormatter[] { iso, dMmmYyyy }) {
+            try {
+                return LocalDate.parse(value, fmt);
+            } catch (DateTimeParseException ignored) {
+                // try next
+            }
+        }
+        throw new IllegalArgumentException("Invalid txnDate format. Use yyyy-MM-dd or d-MMM-yyyy (e.g., 14-OCT-2025).");
+    }
+}
