@@ -1,19 +1,20 @@
-package com.example.clearing.reconciliation.dao;
-
-import com.example.clearing.common.sql.SqlTemplateLoader;
-import com.example.clearing.reconciliation.model.BankTransactionSearchCriteria;
-import com.example.clearing.reconciliation.model.BankTransactionView;
-import com.shared.utilities.logger.LoggerFactoryProvider;
-import org.slf4j.Logger;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.stereotype.Repository;
+package com.example.clearing.dao;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.slf4j.Logger;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+import com.example.clearing.common.sql.SqlTemplateLoader;
+import com.example.clearing.model.BankTransactionSearchCriteria;
+import com.example.clearing.model.BankTransactionView;
+import com.shared.utilities.logger.LoggerFactoryProvider;
 
 @Repository
 public class BankTransactionSearchDao {
@@ -24,7 +25,8 @@ public class BankTransactionSearchDao {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final SqlTemplateLoader sqlTemplates;
 
-    public BankTransactionSearchDao(NamedParameterJdbcTemplate namedParameterJdbcTemplate, SqlTemplateLoader sqlTemplates) {
+    public BankTransactionSearchDao(NamedParameterJdbcTemplate namedParameterJdbcTemplate,
+            SqlTemplateLoader sqlTemplates) {
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         this.sqlTemplates = sqlTemplates;
     }
@@ -69,8 +71,7 @@ public class BankTransactionSearchDao {
         List<BankTransactionView> results = namedParameterJdbcTemplate.query(
                 sql.toString(),
                 params,
-                new BankTransactionRowMapper()
-        );
+                new BankTransactionRowMapper());
         log.debug("Fetched {} transactions for criteria {}", results.size(), criteria);
         return results;
     }

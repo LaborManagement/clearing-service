@@ -1,8 +1,8 @@
-package com.example.clearing.reconciliation.service;
+package com.example.clearing.service;
 
-import com.example.clearing.reconciliation.dao.BankTransactionSearchDao;
-import com.example.clearing.reconciliation.model.BankTransactionSearchCriteria;
-import com.example.clearing.reconciliation.model.BankTransactionView;
+import com.example.clearing.dao.BankTransactionSearchDao;
+import com.example.clearing.model.BankTransactionSearchCriteria;
+import com.example.clearing.model.BankTransactionView;
 import com.shared.utilities.logger.LoggerFactoryProvider;
 import org.slf4j.Logger;
 import org.springframework.stereotype.Service;
@@ -25,12 +25,12 @@ public class BankTransactionSearchService {
     }
 
     public List<BankTransactionView> search(LocalDate txnDate,
-                                            BigDecimal amount,
-                                            String drCrFlag,
-                                            Long bankAccountId,
-                                            String bankAccountNumber,
-                                            String txnRef,
-                                            Integer limit) {
+            BigDecimal amount,
+            String drCrFlag,
+            Long bankAccountId,
+            String bankAccountNumber,
+            String txnRef,
+            Integer limit) {
         BankTransactionSearchCriteria criteria = new BankTransactionSearchCriteria();
         criteria.setTxnDate(txnDate);
         criteria.setAmount(amount);
@@ -40,10 +40,12 @@ public class BankTransactionSearchService {
         criteria.setTxnRef(txnRef);
 
         if (!criteria.hasAnyFilter()) {
-            throw new IllegalArgumentException("At least one filter (txnDate, amount, drCrFlag, bankAccountId, bankAccountNmbr, txnRef) must be provided.");
+            throw new IllegalArgumentException(
+                    "At least one filter (txnDate, amount, drCrFlag, bankAccountId, bankAccountNmbr, txnRef) must be provided.");
         }
 
-        log.info("Searching bank transactions with criteria txnDate={}, amount={}, drCrFlag={}, bankAccountId={}, bankAccountNumber={}, txnRef={}, limit={}",
+        log.info(
+                "Searching bank transactions with criteria txnDate={}, amount={}, drCrFlag={}, bankAccountId={}, bankAccountNumber={}, txnRef={}, limit={}",
                 txnDate, amount, drCrFlag, bankAccountId, bankAccountNumber, txnRef, limit);
         return dao.search(criteria, limit);
     }

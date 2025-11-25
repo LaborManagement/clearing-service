@@ -1,17 +1,4 @@
-package com.example.clearing.reconciliation.controller;
-
-import com.example.clearing.reconciliation.model.BankTransactionView;
-import com.example.clearing.reconciliation.service.BankTransactionSearchService;
-import com.shared.utilities.logger.LoggerFactoryProvider;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import org.slf4j.Logger;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+package com.example.clearing.controller;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -20,6 +7,21 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import java.util.Map;
+
+import org.slf4j.Logger;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.example.clearing.model.BankTransactionView;
+import com.example.clearing.service.BankTransactionSearchService;
+import com.shared.utilities.logger.LoggerFactoryProvider;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/v1/reconciliation/bank-transactions")
@@ -37,8 +39,7 @@ public class BankTransactionController {
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Search transactions in reconciliation.vw_all_bank_transactions",
-            description = "Filters by txn_date, amount, dr_cr_flag, bank_account_id, bank_account_nmbr, txn_ref; returns matching transactions without pagination metadata")
+    @Operation(summary = "Search transactions in reconciliation.vw_all_bank_transactions", description = "Filters by txn_date, amount, dr_cr_flag, bank_account_id, bank_account_nmbr, txn_ref; returns matching transactions without pagination metadata")
     public ResponseEntity<?> searchTransactions(
             @RequestParam(required = false) String txnDate,
             @RequestParam(required = false) BigDecimal amount,
@@ -58,15 +59,16 @@ public class BankTransactionController {
                     bankAccountId,
                     bankAccountNumber,
                     txnRef,
-                    safeSize
-            );
-            // Business case expects a single transaction; return only the list (no pagination metadata)
+                    safeSize);
+            // Business case expects a single transaction; return only the list (no
+            // pagination metadata)
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         } catch (Exception ex) {
             log.error("Failed to search bank transactions", ex);
-            return ResponseEntity.internalServerError().body(Map.of("error", "Unable to search bank transactions right now"));
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Unable to search bank transactions right now"));
         }
     }
 
@@ -85,7 +87,8 @@ public class BankTransactionController {
             return null;
         }
         String value = raw.trim();
-        // Try ISO first (yyyy-MM-dd), then d-MMM-uuuu (e.g., 14-OCT-2025), case-insensitive.
+        // Try ISO first (yyyy-MM-dd), then d-MMM-uuuu (e.g., 14-OCT-2025),
+        // case-insensitive.
         DateTimeFormatter iso = DateTimeFormatter.ISO_LOCAL_DATE;
         DateTimeFormatter dMmmYyyy = new DateTimeFormatterBuilder()
                 .parseCaseInsensitive()
