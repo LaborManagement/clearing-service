@@ -11,8 +11,8 @@ public class SettlementRequest {
     @NotNull
     private Long requestId;
 
-    private String boardId;
-    private String employerId;
+    private Long boardId;
+    private Long employerId;
 
     @NotNull
     private BigDecimal totalAmount;
@@ -31,19 +31,19 @@ public class SettlementRequest {
         this.requestId = requestId;
     }
 
-    public String getBoardId() {
+    public Long getBoardId() {
         return boardId;
     }
 
-    public void setBoardId(String boardId) {
+    public void setBoardId(Long boardId) {
         this.boardId = boardId;
     }
 
-    public String getEmployerId() {
+    public Long getEmployerId() {
         return employerId;
     }
 
-    public void setEmployerId(String employerId) {
+    public void setEmployerId(Long employerId) {
         this.employerId = employerId;
     }
 

@@ -113,6 +113,7 @@ app:
     secret: ${APP_JWT_SECRET:}
     issuer: user-auth-service
     audience: clearing-services
+    allowed-audiences: ${APP_JWT_ALLOWED_AUDIENCES:clearing-services,payment-services}
     expiration: 86400
 
 shared-lib:

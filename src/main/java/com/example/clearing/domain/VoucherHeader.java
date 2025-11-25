@@ -37,10 +37,10 @@ public class VoucherHeader {
     private OffsetDateTime postedAt;
 
     @Column(name = "board_id")
-    private String boardId;
+    private Long boardId;
 
     @Column(name = "employer_id")
-    private String employerId;
+    private Long employerId;
 
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
@@ -104,19 +104,19 @@ public class VoucherHeader {
         this.postedAt = postedAt;
     }
 
-    public String getBoardId() {
+    public Long getBoardId() {
         return boardId;
     }
 
-    public void setBoardId(String boardId) {
+    public void setBoardId(Long boardId) {
         this.boardId = boardId;
     }
 
-    public String getEmployerId() {
+    public Long getEmployerId() {
         return employerId;
     }
 
-    public void setEmployerId(String employerId) {
+    public void setEmployerId(Long employerId) {
         this.employerId = employerId;
     }
 

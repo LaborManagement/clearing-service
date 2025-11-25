@@ -42,6 +42,7 @@ app:
     secret: ${APP_JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
     issuer: ${APP_JWT_ISSUER:user-auth-service}
     audience: ${APP_JWT_AUDIENCE:clearing-services}
+    allowed-audiences: ${APP_JWT_ALLOWED_AUDIENCES:clearing-services,payment-services}
     expiration: ${APP_JWT_EXPIRATION:86400}
 
 shared-lib:

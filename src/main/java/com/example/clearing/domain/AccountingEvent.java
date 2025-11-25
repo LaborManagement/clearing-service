@@ -7,6 +7,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "accounting_event", schema = "clearing")
@@ -26,7 +28,8 @@ public class AccountingEvent {
     @Column(name = "idempotency_key", nullable = false)
     private String idempotencyKey;
 
-    @Column(columnDefinition = "jsonb")
+    @Column(name = "payload", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String payload;
 
     @Column(nullable = false)
