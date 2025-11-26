@@ -6,7 +6,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -18,29 +20,38 @@ public class VoucherHeader {
     @Column(name = "voucher_id")
     private Integer voucherId;
 
-    @Column(name = "event_id", nullable = false)
-    private Integer eventId;
+    @Column(name = "board_id", nullable = false)
+    private Integer boardId;
 
-    @Column(name = "request_id", nullable = false)
-    private Long requestId;
+    @Column(name = "employer_id", nullable = false)
+    private Integer employerId;
 
-    @Column(name = "total_debit", nullable = false)
+    @Column(name = "toli_id")
+    private Integer toliId;
+
+    @Column(name = "voucher_number", nullable = false)
+    private String voucherNumber;
+
+    @Column(name = "voucher_date", nullable = false)
+    private LocalDate voucherDate;
+
+    @Transient
     private BigDecimal totalDebit = BigDecimal.ZERO;
 
-    @Column(name = "total_credit", nullable = false)
+    @Transient
     private BigDecimal totalCredit = BigDecimal.ZERO;
 
     @Column(nullable = false)
     private String status = "CREATED";
 
-    @Column(name = "posted_at")
+    @Column(name = "status_id")
+    private Integer statusId;
+
+    @Transient
     private OffsetDateTime postedAt;
 
-    @Column(name = "board_id")
-    private Long boardId;
-
-    @Column(name = "employer_id")
-    private Long employerId;
+    @Column(name = "total_amount", nullable = false)
+    private BigDecimal totalAmount = BigDecimal.ZERO;
 
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
@@ -56,20 +67,44 @@ public class VoucherHeader {
         this.voucherId = voucherId;
     }
 
-    public Integer getEventId() {
-        return eventId;
+    public Integer getBoardId() {
+        return boardId;
     }
 
-    public void setEventId(Integer eventId) {
-        this.eventId = eventId;
+    public void setBoardId(Integer boardId) {
+        this.boardId = boardId;
     }
 
-    public Long getRequestId() {
-        return requestId;
+    public Integer getEmployerId() {
+        return employerId;
     }
 
-    public void setRequestId(Long requestId) {
-        this.requestId = requestId;
+    public void setEmployerId(Integer employerId) {
+        this.employerId = employerId;
+    }
+
+    public Integer getToliId() {
+        return toliId;
+    }
+
+    public void setToliId(Integer toliId) {
+        this.toliId = toliId;
+    }
+
+    public String getVoucherNumber() {
+        return voucherNumber;
+    }
+
+    public void setVoucherNumber(String voucherNumber) {
+        this.voucherNumber = voucherNumber;
+    }
+
+    public LocalDate getVoucherDate() {
+        return voucherDate;
+    }
+
+    public void setVoucherDate(LocalDate voucherDate) {
+        this.voucherDate = voucherDate;
     }
 
     public BigDecimal getTotalDebit() {
@@ -96,28 +131,20 @@ public class VoucherHeader {
         this.status = status;
     }
 
+    public Integer getStatusId() {
+        return statusId;
+    }
+
+    public void setStatusId(Integer statusId) {
+        this.statusId = statusId;
+    }
+
     public OffsetDateTime getPostedAt() {
         return postedAt;
     }
 
     public void setPostedAt(OffsetDateTime postedAt) {
         this.postedAt = postedAt;
-    }
-
-    public Long getBoardId() {
-        return boardId;
-    }
-
-    public void setBoardId(Long boardId) {
-        this.boardId = boardId;
-    }
-
-    public Long getEmployerId() {
-        return employerId;
-    }
-
-    public void setEmployerId(Long employerId) {
-        this.employerId = employerId;
     }
 
     public OffsetDateTime getCreatedAt() {
@@ -134,5 +161,10 @@ public class VoucherHeader {
 
     public void setUpdatedAt(OffsetDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Integer getEventId() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getEventId'");
     }
 }

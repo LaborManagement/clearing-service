@@ -10,14 +10,23 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.clearing.model.BankTransactionView;
+import com.example.clearing.model.BankTransactionClaimRequest;
+import com.example.clearing.model.BankTransactionClaimResult;
+import com.example.clearing.model.AllocationRequest;
+import com.example.clearing.model.AllocationResponse;
+import com.example.clearing.service.AllocationService;
+import com.example.clearing.service.BankTransactionClaimService;
 import com.example.clearing.service.BankTransactionSearchService;
 import com.shared.utilities.logger.LoggerFactoryProvider;
+import jakarta.validation.Valid;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -33,9 +42,16 @@ public class BankTransactionController {
     private static final int MAX_PAGE_SIZE = 200;
 
     private final BankTransactionSearchService searchService;
+    private final BankTransactionClaimService claimService;
+    private final AllocationService allocationService;
 
-    public BankTransactionController(BankTransactionSearchService searchService) {
+    public BankTransactionController(
+            BankTransactionSearchService searchService,
+            BankTransactionClaimService claimService,
+            AllocationService allocationService) {
         this.searchService = searchService;
+        this.claimService = claimService;
+        this.allocationService = allocationService;
     }
 
     @GetMapping("/search")
@@ -69,6 +85,44 @@ public class BankTransactionController {
             log.error("Failed to search bank transactions", ex);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Unable to search bank transactions right now"));
+        }
+    }
+
+    @PostMapping("/claim")
+    @Operation(summary = "Claim a reconciliation transaction and import into clearing.bank_transaction")
+    public ResponseEntity<?> claimTransaction(@Valid @RequestBody BankTransactionClaimRequest request) {
+        String claimedBy = (request.getClaimedBy() == null || request.getClaimedBy().isBlank())
+                ? "system"
+                : request.getClaimedBy().trim();
+        try {
+            BankTransactionClaimResult result = claimService.claimFromRecon(
+                    request.getType(), request.getSourceTxnId(), claimedBy);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(409).body(Map.of("error", ex.getMessage()));
+        } catch (Exception ex) {
+            log.error("Failed to claim bank transaction {}", request.getSourceTxnId(), ex);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Unable to claim bank transaction right now"));
+        }
+    }
+
+    @PostMapping("/allocations")
+    @Operation(summary = "Create an allocation against a bank transaction and update remaining amount")
+    public ResponseEntity<?> createAllocation(@Valid @RequestBody AllocationRequest request) {
+        try {
+            AllocationResponse response = allocationService.createAllocation(request);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(409).body(Map.of("error", ex.getMessage()));
+        } catch (Exception ex) {
+            log.error("Failed to create allocation for txn {}", request.getBankTxnId(), ex);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Unable to create allocation right now"));
         }
     }
 

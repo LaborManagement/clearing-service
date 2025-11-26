@@ -6,9 +6,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "accounting_event", schema = "clearing")
@@ -16,7 +16,7 @@ public class AccountingEvent {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "event_id")
+    @Column(name = "accounting_event_id")
     private Integer eventId;
 
     @Column(name = "event_type_id", nullable = false)
@@ -25,24 +25,32 @@ public class AccountingEvent {
     @Column(name = "request_id", nullable = false)
     private Long requestId;
 
-    @Column(name = "idempotency_key", nullable = false)
-    private String idempotencyKey;
+    @Column(name = "board_id", nullable = false)
+    private Integer boardId;
 
-    @Column(name = "payload", columnDefinition = "jsonb")
-    @JdbcTypeCode(SqlTypes.JSON)
-    private String payload;
+    @Column(name = "employer_id", nullable = false)
+    private Integer employerId;
+
+    @Column(name = "toli_id")
+    private Integer toliId;
+
+    @Column(name = "event_date", nullable = false)
+    private LocalDate eventDate;
+
+    @Column(name = "amount", nullable = false)
+    private BigDecimal amount;
 
     @Column(nullable = false)
     private String status = "RECEIVED";
 
-    @Column(name = "error_message")
-    private String errorMessage;
+    @Column(name = "status_id")
+    private Integer statusId;
 
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
-    @Column(name = "processed_at")
-    private OffsetDateTime processedAt;
+    @Column(name = "updated_at")
+    private OffsetDateTime updatedAt;
 
     public Integer getEventId() {
         return eventId;
@@ -68,20 +76,44 @@ public class AccountingEvent {
         this.requestId = requestId;
     }
 
-    public String getIdempotencyKey() {
-        return idempotencyKey;
+    public Integer getBoardId() {
+        return boardId;
     }
 
-    public void setIdempotencyKey(String idempotencyKey) {
-        this.idempotencyKey = idempotencyKey;
+    public void setBoardId(Integer boardId) {
+        this.boardId = boardId;
     }
 
-    public String getPayload() {
-        return payload;
+    public Integer getEmployerId() {
+        return employerId;
     }
 
-    public void setPayload(String payload) {
-        this.payload = payload;
+    public void setEmployerId(Integer employerId) {
+        this.employerId = employerId;
+    }
+
+    public Integer getToliId() {
+        return toliId;
+    }
+
+    public void setToliId(Integer toliId) {
+        this.toliId = toliId;
+    }
+
+    public LocalDate getEventDate() {
+        return eventDate;
+    }
+
+    public void setEventDate(LocalDate eventDate) {
+        this.eventDate = eventDate;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
     }
 
     public String getStatus() {
@@ -92,12 +124,12 @@ public class AccountingEvent {
         this.status = status;
     }
 
-    public String getErrorMessage() {
-        return errorMessage;
+    public Integer getStatusId() {
+        return statusId;
     }
 
-    public void setErrorMessage(String errorMessage) {
-        this.errorMessage = errorMessage;
+    public void setStatusId(Integer statusId) {
+        this.statusId = statusId;
     }
 
     public OffsetDateTime getCreatedAt() {
@@ -108,11 +140,11 @@ public class AccountingEvent {
         this.createdAt = createdAt;
     }
 
-    public OffsetDateTime getProcessedAt() {
-        return processedAt;
+    public OffsetDateTime getUpdatedAt() {
+        return updatedAt;
     }
 
-    public void setProcessedAt(OffsetDateTime processedAt) {
-        this.processedAt = processedAt;
+    public void setUpdatedAt(OffsetDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

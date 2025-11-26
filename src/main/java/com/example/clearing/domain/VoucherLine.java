@@ -21,26 +21,29 @@ public class VoucherLine {
     @Column(name = "voucher_id", nullable = false)
     private Integer voucherId;
 
-    @Column(name = "dr_cr_flag", nullable = false, length = 2)
-    private String drCrFlag;
+    @Column(name = "board_id", nullable = false)
+    private Integer boardId;
 
-    @Column(name = "gl_source_type", nullable = false)
-    private String glSourceType;
+    @Column(name = "employer_id", nullable = false)
+    private Integer employerId;
+
+    @Column(name = "toli_id")
+    private Integer toliId;
+
+    @Column(name = "line_number", nullable = false)
+    private Integer lineNumber;
+
+    @Column(name = "description")
+    private String description;
 
     @Column(nullable = false)
     private BigDecimal amount;
 
-    @Column(name = "bank_txn_id")
-    private Long bankTxnId;
-
-    @Column(name = "allocation_id")
-    private Long allocationId;
-
-    @Column(name = "dimension_source")
-    private String dimensionSource;
-
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private OffsetDateTime updatedAt;
 
     public Integer getVoucherLineId() {
         return voucherLineId;
@@ -58,20 +61,44 @@ public class VoucherLine {
         this.voucherId = voucherId;
     }
 
-    public String getDrCrFlag() {
-        return drCrFlag;
+    public Integer getBoardId() {
+        return boardId;
     }
 
-    public void setDrCrFlag(String drCrFlag) {
-        this.drCrFlag = drCrFlag;
+    public void setBoardId(Integer boardId) {
+        this.boardId = boardId;
     }
 
-    public String getGlSourceType() {
-        return glSourceType;
+    public Integer getEmployerId() {
+        return employerId;
     }
 
-    public void setGlSourceType(String glSourceType) {
-        this.glSourceType = glSourceType;
+    public void setEmployerId(Integer employerId) {
+        this.employerId = employerId;
+    }
+
+    public Integer getToliId() {
+        return toliId;
+    }
+
+    public void setToliId(Integer toliId) {
+        this.toliId = toliId;
+    }
+
+    public Integer getLineNumber() {
+        return lineNumber;
+    }
+
+    public void setLineNumber(Integer lineNumber) {
+        this.lineNumber = lineNumber;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public BigDecimal getAmount() {
@@ -82,35 +109,19 @@ public class VoucherLine {
         this.amount = amount;
     }
 
-    public Long getBankTxnId() {
-        return bankTxnId;
-    }
-
-    public void setBankTxnId(Long bankTxnId) {
-        this.bankTxnId = bankTxnId;
-    }
-
-    public Long getAllocationId() {
-        return allocationId;
-    }
-
-    public void setAllocationId(Long allocationId) {
-        this.allocationId = allocationId;
-    }
-
-    public String getDimensionSource() {
-        return dimensionSource;
-    }
-
-    public void setDimensionSource(String dimensionSource) {
-        this.dimensionSource = dimensionSource;
-    }
-
     public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
 
     public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public OffsetDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(OffsetDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

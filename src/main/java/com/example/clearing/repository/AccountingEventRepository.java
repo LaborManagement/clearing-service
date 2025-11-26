@@ -6,5 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AccountingEventRepository extends JpaRepository<AccountingEvent, Integer> {
 
-    Optional<AccountingEvent> findByEventTypeIdAndRequestIdAndIdempotencyKey(Integer eventTypeId, Long requestId, String idempotencyKey);
+    Optional<AccountingEvent> findByEventTypeIdAndRequestIdAndBoardIdAndEmployerId(
+            Integer eventTypeId, Long requestId, Integer boardId, Integer employerId);
 }
