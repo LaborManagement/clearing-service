@@ -5,15 +5,17 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import com.example.clearing.domain.AccountingEvent;
 import com.example.clearing.domain.AccountingEventType;
 import com.example.clearing.domain.AccountingRuleHeader;
 import com.example.clearing.domain.AccountingRuleLine;
+import com.example.clearing.domain.PaymentAllocation;
 import com.example.clearing.domain.VoucherHeader;
 import com.example.clearing.domain.VoucherLine;
 import com.example.clearing.dto.AllocationBreakdown;
@@ -23,6 +25,7 @@ import com.example.clearing.repository.AccountingEventRepository;
 import com.example.clearing.repository.AccountingEventTypeRepository;
 import com.example.clearing.repository.AccountingRuleHeaderRepository;
 import com.example.clearing.repository.AccountingRuleLineRepository;
+import com.example.clearing.repository.PaymentAllocationRepository;
 import com.example.clearing.repository.VoucherHeaderRepository;
 import com.example.clearing.repository.VoucherLineRepository;
 import com.shared.common.dao.TenantAccessDao;
@@ -32,13 +35,13 @@ import jakarta.transaction.Transactional;
 @Service
 public class SettlementService {
 
-    private static final Logger log = LoggerFactory.getLogger(SettlementService.class);
-
     private static final String SETTLEMENT_EVENT_CODE = "EMP_REQ_SETTLED";
+
     private final AccountingEventTypeRepository eventTypeRepository;
     private final AccountingEventRepository eventRepository;
     private final AccountingRuleHeaderRepository ruleHeaderRepository;
     private final AccountingRuleLineRepository ruleLineRepository;
+    private final PaymentAllocationRepository paymentAllocationRepository;
     private final VoucherHeaderRepository voucherHeaderRepository;
     private final VoucherLineRepository voucherLineRepository;
     private final StatusService statusService;
@@ -49,6 +52,7 @@ public class SettlementService {
             AccountingEventRepository eventRepository,
             AccountingRuleHeaderRepository ruleHeaderRepository,
             AccountingRuleLineRepository ruleLineRepository,
+            PaymentAllocationRepository paymentAllocationRepository,
             VoucherHeaderRepository voucherHeaderRepository,
             VoucherLineRepository voucherLineRepository,
             StatusService statusService,
@@ -57,6 +61,7 @@ public class SettlementService {
         this.eventRepository = eventRepository;
         this.ruleHeaderRepository = ruleHeaderRepository;
         this.ruleLineRepository = ruleLineRepository;
+        this.paymentAllocationRepository = paymentAllocationRepository;
         this.voucherHeaderRepository = voucherHeaderRepository;
         this.voucherLineRepository = voucherLineRepository;
         this.statusService = statusService;
@@ -69,17 +74,19 @@ public class SettlementService {
                 .orElseThrow(() -> new IllegalStateException("Missing accounting_event_type EMP_REQ_SETTLED"));
 
         TenantAccess tenantAccess = resolveTenantAccess(request);
+        BigDecimal totalAmount = sumAllocations(request);
+        if (request.getTotalAmount() != null && totalAmount.compareTo(request.getTotalAmount()) != 0) {
+            throw new IllegalArgumentException("Sum of allocations does not match totalAmount");
+        }
+        String voucherNumber = StringUtils.hasText(request.getIdempotencyKey())
+                ? request.getIdempotencyKey()
+                : "REQ-" + request.getRequestId();
 
         AccountingEvent event = eventRepository
                 .findByEventTypeIdAndRequestIdAndBoardIdAndEmployerId(
                         eventType.getEventTypeId(), request.getRequestId(), tenantAccess.boardId,
                         tenantAccess.employerId)
-                .orElseGet(() -> createEvent(eventType.getEventTypeId(), request, tenantAccess));
-
-        VoucherHeader voucherHeader = voucherHeaderRepository
-                .findFirstByBoardIdAndEmployerIdAndVoucherNumber(
-                        tenantAccess.boardId, tenantAccess.employerId, request.getIdempotencyKey())
-                .orElseGet(() -> createVoucherHeaderShell(event, request, tenantAccess));
+                .orElseGet(() -> createEvent(eventType.getEventTypeId(), totalAmount, request, tenantAccess));
 
         AccountingRuleHeader ruleHeader = ruleHeaderRepository
                 .findByEventTypeIdAndActiveTrueOrderByPriorityAsc(eventType.getEventTypeId())
@@ -95,9 +102,15 @@ public class SettlementService {
                     "No accounting_rule_line for rule_header_id " + ruleHeader.getRuleHeaderId());
         }
 
+        VoucherHeader voucherHeader = voucherHeaderRepository
+                .findFirstByBoardIdAndEmployerIdAndVoucherNumber(
+                        tenantAccess.boardId, tenantAccess.employerId, voucherNumber)
+                .orElseGet(() -> createVoucherHeaderShell(voucherNumber, totalAmount, tenantAccess));
+
         OffsetDateTime now = OffsetDateTime.now();
         List<VoucherLine> existingLines = voucherLineRepository.findByVoucherId(voucherHeader.getVoucherId());
-        List<VoucherLine> newLines = buildVoucherLines(request, existingLines, now, tenantAccess);
+        List<VoucherLine> newLines = buildVoucherLinesFromRules(ruleLines, totalAmount, request, existingLines, now,
+                tenantAccess);
 
         if (!newLines.isEmpty()) {
             for (VoucherLine line : newLines) {
@@ -106,12 +119,7 @@ public class SettlementService {
             voucherLineRepository.saveAll(newLines);
         }
 
-        List<VoucherLine> allLines = new ArrayList<>(existingLines);
-        allLines.addAll(newLines);
-        BigDecimal totalAmount = allLines.stream()
-                .map(VoucherLine::getAmount)
-                .filter(a -> a != null)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        linkVoucherToPaymentAllocations(voucherHeader, request, tenantAccess, now);
 
         voucherHeader.setTotalDebit(totalAmount);
         voucherHeader.setUpdatedAt(now);
@@ -134,7 +142,8 @@ public class SettlementService {
                 "Voucher posted");
     }
 
-    private AccountingEvent createEvent(Integer eventTypeId, SettlementRequest request, TenantAccess tenantAccess) {
+    private AccountingEvent createEvent(
+            Integer eventTypeId, BigDecimal totalAmount, SettlementRequest request, TenantAccess tenantAccess) {
         AccountingEvent newEvent = new AccountingEvent();
         newEvent.setEventTypeId(eventTypeId);
         newEvent.setRequestId(request.getRequestId());
@@ -142,7 +151,7 @@ public class SettlementService {
         newEvent.setEmployerId(tenantAccess.employerId);
         newEvent.setToliId(tenantAccess.toliId);
         newEvent.setEventDate(LocalDate.now());
-        newEvent.setAmount(request.getTotalAmount());
+        newEvent.setAmount(totalAmount);
         newEvent.setStatus("RECEIVED");
         newEvent.setStatusId(statusService.requireStatusId("accounting_event", "RECEIVED"));
         OffsetDateTime now = OffsetDateTime.now();
@@ -151,16 +160,16 @@ public class SettlementService {
         return eventRepository.save(newEvent);
     }
 
-    private VoucherHeader createVoucherHeaderShell(AccountingEvent event, SettlementRequest request,
+    private VoucherHeader createVoucherHeaderShell(String voucherNumber, BigDecimal totalAmount,
             TenantAccess tenantAccess) {
         OffsetDateTime now = OffsetDateTime.now();
         VoucherHeader voucherHeader = new VoucherHeader();
         voucherHeader.setBoardId(tenantAccess.boardId);
         voucherHeader.setEmployerId(tenantAccess.employerId);
         voucherHeader.setToliId(tenantAccess.toliId);
-        voucherHeader.setVoucherNumber(request.getIdempotencyKey());
+        voucherHeader.setVoucherNumber(voucherNumber);
         voucherHeader.setVoucherDate(LocalDate.now());
-        voucherHeader.setTotalDebit(request.getTotalAmount());
+        voucherHeader.setTotalDebit(totalAmount);
         voucherHeader.setStatus("CREATED");
         voucherHeader.setStatusId(statusService.requireStatusId("voucher_header", "CREATED"));
         voucherHeader.setCreatedAt(now);
@@ -168,26 +177,64 @@ public class SettlementService {
         return voucherHeaderRepository.save(voucherHeader);
     }
 
-    private List<VoucherLine> buildVoucherLines(
+    private List<VoucherLine> buildVoucherLinesFromRules(
+            List<AccountingRuleLine> ruleLines,
+            BigDecimal eventTotal,
             SettlementRequest request,
             List<VoucherLine> existingLines,
             OffsetDateTime createdAt,
             TenantAccess tenantAccess) {
         List<VoucherLine> newLines = new ArrayList<>();
         int nextLineNo = existingLines.size() + 1;
-        for (AllocationBreakdown allocation : request.getAllocations()) {
-            VoucherLine line = new VoucherLine();
-            line.setLineNumber(nextLineNo++);
-            line.setAmount(allocation.getAmount());
-            line.setDescription("ALLOCATION " + allocation.getAllocationId());
-            line.setBoardId(tenantAccess.boardId);
-            line.setEmployerId(tenantAccess.employerId);
-            line.setToliId(tenantAccess.toliId);
-            line.setCreatedAt(createdAt);
-            line.setUpdatedAt(createdAt);
-            newLines.add(line);
+        for (AccountingRuleLine ruleLine : ruleLines) {
+            if ("EVENT_TOTAL".equalsIgnoreCase(ruleLine.getAmountSource())) {
+                if (hasExistingLine(existingLines, ruleLine.getGlSourceType(), null)) {
+                    continue;
+                }
+                VoucherLine line = baseLine(nextLineNo++, tenantAccess, createdAt);
+                line.setAmount(eventTotal);
+                line.setDescription(ruleLine.getDrCrFlag() + " " + ruleLine.getGlSourceType());
+                newLines.add(line);
+            } else if ("PER_ALLOCATION".equalsIgnoreCase(ruleLine.getAmountSource())) {
+                for (AllocationBreakdown allocation : request.getAllocations()) {
+                    if (hasExistingLine(existingLines, ruleLine.getGlSourceType(), allocation.getBankTxnId())) {
+                        continue;
+                    }
+                    VoucherLine line = baseLine(nextLineNo++, tenantAccess, createdAt);
+                    line.setAmount(allocation.getAmount());
+                    line.setDescription(ruleLine.getDrCrFlag() + " " + ruleLine.getGlSourceType()
+                            + " TXN " + allocation.getBankTxnId());
+                    newLines.add(line);
+                }
+            } else {
+                throw new IllegalStateException("Unsupported amount_source: " + ruleLine.getAmountSource());
+            }
         }
         return newLines;
+    }
+
+    private VoucherLine baseLine(int lineNo, TenantAccess tenantAccess, OffsetDateTime ts) {
+        VoucherLine line = new VoucherLine();
+        line.setLineNumber(lineNo);
+        line.setBoardId(tenantAccess.boardId);
+        line.setEmployerId(tenantAccess.employerId);
+        line.setToliId(tenantAccess.toliId);
+        line.setCreatedAt(ts);
+        line.setUpdatedAt(ts);
+        return line;
+    }
+
+    private boolean hasExistingLine(List<VoucherLine> existingLines, String glSource, Long bankTxnId) {
+        return existingLines.stream().anyMatch(line -> {
+            String desc = line.getDescription();
+            if (desc == null || !desc.contains(glSource)) {
+                return false;
+            }
+            if (bankTxnId == null) {
+                return true;
+            }
+            return desc.contains("TXN " + bankTxnId);
+        });
     }
 
     private TenantAccess resolveTenantAccess(SettlementRequest request) {
@@ -205,5 +252,65 @@ public class SettlementService {
     }
 
     private record TenantAccess(Integer boardId, Integer employerId, Integer toliId) {
+    }
+
+    private BigDecimal sumAllocations(SettlementRequest request) {
+        return request.getAllocations().stream()
+                .map(AllocationBreakdown::getAmount)
+                .filter(a -> a != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private void linkVoucherToPaymentAllocations(
+            VoucherHeader voucherHeader, SettlementRequest request, TenantAccess tenantAccess, OffsetDateTime now) {
+        Map<Long, BigDecimal> amountsByTxn = request.getAllocations().stream()
+                .collect(Collectors.groupingBy(
+                        AllocationBreakdown::getBankTxnId,
+                        Collectors.reducing(BigDecimal.ZERO, AllocationBreakdown::getAmount, BigDecimal::add)));
+
+        List<PaymentAllocation> allocations = paymentAllocationRepository.findByRequestId(request.getRequestId());
+        if (allocations.isEmpty()) {
+            throw new IllegalStateException("No payment_allocation rows found for request " + request.getRequestId());
+        }
+
+        for (Map.Entry<Long, BigDecimal> entry : amountsByTxn.entrySet()) {
+            Long bankTxnId = entry.getKey();
+            BigDecimal required = entry.getValue();
+            List<PaymentAllocation> candidates = allocations.stream()
+                    .filter(a -> bankTxnId.equals(a.getBankTxnId().longValue())
+                            && a.getVoucherId() == null
+                            && tenantAccess.boardId.equals(a.getBoardId())
+                            && tenantAccess.employerId.equals(a.getEmployerId()))
+                    .sorted((a, b) -> a.getAllocationId().compareTo(b.getAllocationId()))
+                    .toList();
+
+            BigDecimal available = candidates.stream()
+                    .map(PaymentAllocation::getAllocatedAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (available.compareTo(required) < 0) {
+                throw new IllegalStateException("Not enough unlinked payment_allocation for txn " + bankTxnId);
+            }
+
+            BigDecimal remaining = required;
+            for (PaymentAllocation pa : candidates) {
+                if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+                    break;
+                }
+                BigDecimal allocAmt = pa.getAllocatedAmount();
+                if (remaining.compareTo(allocAmt) < 0) {
+                    throw new IllegalStateException("Cannot partially consume allocation_id " + pa.getAllocationId());
+                }
+                pa.setVoucherId(voucherHeader.getVoucherId());
+                pa.setUpdatedAt(now);
+                pa.setStatusId(statusService.requireStatusId("payment_allocation", "SETTLED"));
+                remaining = remaining.subtract(allocAmt);
+            }
+
+            if (remaining.compareTo(BigDecimal.ZERO) != 0) {
+                throw new IllegalStateException("Failed to fully link allocations for txn " + bankTxnId);
+            }
+        }
+
+        paymentAllocationRepository.saveAll(allocations);
     }
 }
