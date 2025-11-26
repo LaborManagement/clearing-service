@@ -11,6 +11,10 @@ public class AllocationRequest {
     private Long requestId;
 
     @NotNull
+    @DecimalMin(value = "0.01")
+    private BigDecimal requestedAmount;
+
+    @NotNull
     private Integer bankTxnId;
 
     @NotNull
@@ -27,6 +31,14 @@ public class AllocationRequest {
 
     public void setRequestId(Long requestId) {
         this.requestId = requestId;
+    }
+
+    public BigDecimal getRequestedAmount() {
+        return requestedAmount;
+    }
+
+    public void setRequestedAmount(BigDecimal requestedAmount) {
+        this.requestedAmount = requestedAmount;
     }
 
     public Integer getBankTxnId() {

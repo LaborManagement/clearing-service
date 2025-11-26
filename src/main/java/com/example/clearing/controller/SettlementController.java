@@ -12,8 +12,11 @@ import com.example.clearing.service.SettlementService;
 
 import jakarta.validation.Valid;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+
 @RestController
 @RequestMapping("/api/clearing/events")
+@SecurityRequirement(name = "Bearer Authentication")
 public class SettlementController {
 
     private final SettlementService settlementService;

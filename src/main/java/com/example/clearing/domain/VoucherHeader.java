@@ -163,8 +163,11 @@ public class VoucherHeader {
         this.updatedAt = updatedAt;
     }
 
-    public Integer getEventId() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getEventId'");
+    public BigDecimal getTotalAmount() {
+        return totalAmount;
+    }
+
+    public void setTotalAmount(BigDecimal totalAmount) {
+        this.totalAmount = totalAmount;
     }
 }

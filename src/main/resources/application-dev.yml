@@ -48,20 +48,30 @@ management:
 
 shared-lib:
   audit:
-    enabled: true
+    enabled: true # Set to true to enable audit logging
     table-name: audit.audit_event
     service-name: clearing-service
     source-schema: clearing
     hashing-algorithm: SHA-256
     initial-hash-value: 0000000000000000000000000000000000000000000000000000000000000000
   entity-audit:
-    enabled: true
+    enabled: true # Enable entity-level auditing (requires DataSource)
     table-name: audit.entity_audit_event
-    source-table: clearing_records
     service-name: clearing-service
     source-schema: clearing
     hashing-algorithm: SHA-256
     initial-hash-value: 0000000000000000000000000000000000000000000000000000000000000000
+  # SFTP Utility Configuration
+  sftp:
+    enabled: false # Set to true to enable SFTP operations
+    host: localhost
+    port: 22
+    username: user
+    password: password
+    remote-directory: /incoming
+    local-directory: /tmp/sftp
+    known-hosts-file: ~/.ssh/known_hosts
+    strict-host-key-checking: true
   security:
     enabled: true
     permitted-paths:
@@ -74,6 +84,15 @@ shared-lib:
       url: http://localhost:8080/internal/auth/introspect
       api-key: ${INTERNAL_API_KEY:4f0d3ac5a91b7fe246d3851c09a2f718f6c8d42704e3b89a1f2d6c7b81e4f0a3}
       api-key-header: X-Internal-Api-Key
+    dynamic-rbac:
+      enabled: true
+      base-url: ${AUTH_BASE_URL:http://localhost:8080}
+      authorization-matrix-path: /internal/authz/users/{userId}/matrix
+      endpoint-metadata-path: /internal/authz/endpoints/metadata
+      api-key: ${INTERNAL_API_KEY:4f0d3ac5a91b7fe246d3851c09a2f718f6c8d42704e3b89a1f2d6c7b81e4f0a3}
+      api-key-header: ${INTERNAL_API_KEY_HEADER:X-Internal-Api-Key}
+      policy-evaluation-enabled: true
+      fail-open: false
     cors:
       enabled: true
       allowed-origins:
