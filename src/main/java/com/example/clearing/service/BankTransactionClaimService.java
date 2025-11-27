@@ -1,25 +1,28 @@
 package com.example.clearing.service;
 
-import com.example.clearing.model.BankTransactionClaimResult;
-import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
-import com.shared.common.dao.TenantAccessDao;
+
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
+
+import com.example.clearing.model.BankTransactionClaimResult;
+import com.shared.common.dao.TenantAccessDao;
+
+import jakarta.transaction.Transactional;
 
 @Service
 public class BankTransactionClaimService {
 
     private static final String SOURCE_SYSTEM = "RECON";
     private static final String STATUS_TYPE_BANK_TXN = "bank_transaction";
-    private static final String STATUS_CODE_CLAIMED = "CLAIMED";
+    private static final int STATUS_ID_CLAIMED = 1;
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final StatusService statusService;
@@ -198,7 +201,8 @@ public class BankTransactionClaimService {
                     source_txn_id,
                     source_ref,
                     claimed_by,
-                    claimed_at
+                    claimed_at,
+                    is_settled
                 )
                 VALUES (
                     :bankAccountId,
@@ -221,7 +225,8 @@ public class BankTransactionClaimService {
                     :sourceTxnId,
                     :sourceRef,
                     :claimedBy,
-                    :claimedAt
+                    :claimedAt,
+                    FALSE
                 )
                 ON CONFLICT (source_system, source_txn_id)
                 DO UPDATE SET
@@ -240,7 +245,6 @@ public class BankTransactionClaimService {
                 RETURNING bank_txn_id;
                 """;
 
-        Integer statusId = statusService.requireStatusId(STATUS_TYPE_BANK_TXN, STATUS_CODE_CLAIMED);
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("bankAccountId", row.bankAccountId)
                 .addValue("txnRef", row.txnRef)
@@ -254,7 +258,7 @@ public class BankTransactionClaimService {
                 .addValue("sourceTxnId", row.sourceTxnId)
                 .addValue("sourceRef", row.txnRef)
                 .addValue("claimedBy", claimedBy)
-                .addValue("statusId", statusId)
+                .addValue("statusId", STATUS_ID_CLAIMED)
                 .addValue("boardId", tenantAccess.boardId)
                 .addValue("employerId", tenantAccess.employerId)
                 .addValue("toliId", tenantAccess.toliId);

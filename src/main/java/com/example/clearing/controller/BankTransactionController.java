@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.clearing.domain.BankTransaction;
 import com.example.clearing.model.BankTransactionView;
 import com.example.clearing.model.BankTransactionClaimRequest;
 import com.example.clearing.model.BankTransactionClaimResult;
@@ -85,6 +86,27 @@ public class BankTransactionController {
             log.error("Failed to search bank transactions", ex);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Unable to search bank transactions right now"));
+        }
+    }
+
+    @GetMapping
+    @Operation(summary = "List clearing bank transactions", description = "Filters by bankTxnId, txnRef (contains), isSettled for the caller's tenant")
+    public ResponseEntity<?> listClearingBankTransactions(
+            @RequestParam(name = "bankTxnId", required = false) Integer bankTxnId,
+            @RequestParam(name = "txnRef", required = false) String txnRef,
+            @RequestParam(name = "isSettled", required = false) Boolean isSettled,
+            @RequestParam(defaultValue = "20") int size) {
+        try {
+            int safeSize = Math.max(1, Math.min(size, MAX_PAGE_SIZE));
+            java.util.List<BankTransaction> txns = searchService.findClearingTransactions(
+                    bankTxnId, txnRef, isSettled, safeSize);
+            return ResponseEntity.ok(txns);
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        } catch (Exception ex) {
+            log.error("Failed to list clearing bank transactions", ex);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Unable to fetch clearing bank transactions right now"));
         }
     }
 

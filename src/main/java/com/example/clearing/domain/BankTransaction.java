@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import jakarta.persistence.Transient;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -81,6 +82,12 @@ public class BankTransaction {
 
     @Column(name = "claimed_at")
     private OffsetDateTime claimedAt;
+
+    @Column(name = "is_settled")
+    private Boolean isSettled;
+
+    @Transient
+    private String statusCode;
 
     @Version
     private Integer version;
@@ -259,6 +266,22 @@ public class BankTransaction {
 
     public void setClaimedAt(OffsetDateTime claimedAt) {
         this.claimedAt = claimedAt;
+    }
+
+    public Boolean getIsSettled() {
+        return isSettled;
+    }
+
+    public void setIsSettled(Boolean isSettled) {
+        this.isSettled = isSettled;
+    }
+
+    public String getStatusCode() {
+        return statusCode;
+    }
+
+    public void setStatusCode(String statusCode) {
+        this.statusCode = statusCode;
     }
 
     public Integer getVersion() {

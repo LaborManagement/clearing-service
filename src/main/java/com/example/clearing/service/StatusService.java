@@ -14,6 +14,7 @@ public class StatusService {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final Map<String, Integer> cache = new ConcurrentHashMap<>();
+    private final Map<String, String> codeCache = new ConcurrentHashMap<>();
 
     public StatusService(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
@@ -24,10 +25,13 @@ public class StatusService {
         // Preload all statuses; non-fatal if fails.
         try {
             jdbcTemplate.query(
-                    "SELECT status_type, status_code, id FROM clearing.status_master WHERE is_active = TRUE",
+                    "SELECT status_type, status_code, seq_no FROM clearing.status_master WHERE is_active = TRUE",
                     rs -> {
-                        String key = key(rs.getString("status_type"), rs.getString("status_code"));
-                        cache.put(key, rs.getInt("id"));
+                        String type = rs.getString("status_type");
+                        String code = rs.getString("status_code");
+                        Integer seq = rs.getInt("seq_no");
+                        cache.put(key(type, code), seq);
+                        codeCache.put(codeKey(type, seq), code);
                     });
         } catch (Exception ignored) {
             // cache will lazily load on first miss
@@ -40,18 +44,41 @@ public class StatusService {
         if (cached != null) {
             return cached;
         }
-        Integer id = jdbcTemplate.query(
-                "SELECT id FROM clearing.status_master WHERE status_type = :type AND status_code = :code AND is_active = TRUE",
+        Integer seqNo = jdbcTemplate.query(
+                "SELECT seq_no FROM clearing.status_master WHERE status_type = :type AND status_code = :code AND is_active = TRUE",
                 Map.of("type", statusType, "code", statusCode),
-                rs -> rs.next() ? rs.getInt("id") : null);
-        if (id == null) {
+                rs -> rs.next() ? rs.getInt("seq_no") : null);
+        if (seqNo == null) {
             throw new IllegalStateException("Status not found for type=" + statusType + " code=" + statusCode);
         }
-        cache.put(key, id);
-        return id;
+        cache.put(key, seqNo);
+        return seqNo;
+    }
+
+    public String resolveStatusCode(String statusType, Integer statusId) {
+        if (statusId == null) {
+            return null;
+        }
+        String cacheKey = codeKey(statusType, statusId);
+        String cached = codeCache.get(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+        String code = jdbcTemplate.query(
+                "SELECT status_code FROM clearing.status_master WHERE status_type = :type AND seq_no = :seq AND is_active = TRUE",
+                Map.of("type", statusType, "seq", statusId),
+                rs -> rs.next() ? rs.getString("status_code") : null);
+        if (code != null) {
+            codeCache.put(cacheKey, code);
+        }
+        return code;
     }
 
     private String key(String type, String code) {
         return type + "::" + code;
+    }
+
+    private String codeKey(String type, Integer seqNo) {
+        return type + "::" + seqNo;
     }
 }

@@ -29,7 +29,8 @@ public class AllocationService {
     private static final String STATUS_TYPE_ALLOCATION = "payment_allocation";
     private static final String STATUS_CODE_ALLOCATED = "ALLOCATED";
     private static final String STATUS_TYPE_BANK_TXN = "bank_transaction";
-    private static final String STATUS_CODE_ALLOCATED_TXN = "ALLOCATED";
+    private static final int STATUS_ID_ALLOCATED_TXN = 2;
+    private static final int STATUS_ID_SETTLED_TXN = 3;
 
     private final BankTransactionRepository bankTransactionRepository;
     private final PaymentAllocationRepository paymentAllocationRepository;
@@ -94,7 +95,11 @@ public class AllocationService {
                 (txn.getAllocatedAmount() == null ? BigDecimal.ZERO : txn.getAllocatedAmount()).add(amount));
         txn.setRemainingAmount(remaining.subtract(amount));
         txn.setUpdatedAt(now);
-        txn.setStatusId(statusService.requireStatusId(STATUS_TYPE_BANK_TXN, STATUS_CODE_ALLOCATED_TXN));
+        boolean nowSettled = txn.getRemainingAmount() != null
+                && txn.getRemainingAmount().compareTo(BigDecimal.ZERO) == 0;
+        txn.setIsSettled(nowSettled);
+        txn.setStatusId(nowSettled ? STATUS_ID_SETTLED_TXN : STATUS_ID_ALLOCATED_TXN);
+        txn.setStatusCode(statusService.resolveStatusCode(STATUS_TYPE_BANK_TXN, txn.getStatusId()));
 
         try {
             bankTransactionRepository.saveAndFlush(txn);
