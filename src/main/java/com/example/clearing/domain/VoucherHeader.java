@@ -41,11 +41,11 @@ public class VoucherHeader {
     @Transient
     private BigDecimal totalCredit = BigDecimal.ZERO;
 
-    @Column(nullable = false)
-    private String status = "CREATED";
-
     @Column(name = "status_id")
     private Integer statusId;
+
+    @Transient
+    private String status;
 
     @Transient
     private OffsetDateTime postedAt;
@@ -123,20 +123,20 @@ public class VoucherHeader {
         this.totalCredit = totalCredit;
     }
 
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
     public Integer getStatusId() {
         return statusId;
     }
 
     public void setStatusId(Integer statusId) {
         this.statusId = statusId;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public OffsetDateTime getPostedAt() {

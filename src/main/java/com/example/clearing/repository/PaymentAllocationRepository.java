@@ -22,8 +22,8 @@ public interface PaymentAllocationRepository extends JpaRepository<PaymentAlloca
             WHERE (:requestId IS NULL OR p.requestId = :requestId)
               AND (:bankTxnId IS NULL OR p.bankTxnId = :bankTxnId)
               AND (:voucherId IS NULL OR p.voucherId = :voucherId)
-              AND (:status IS NULL OR p.status = :status)
+              AND (:statusId IS NULL OR p.statusId = :statusId)
             ORDER BY p.allocationId DESC
             """)
-    List<PaymentAllocation> search(Long requestId, Integer bankTxnId, Integer voucherId, String status, Pageable pageable);
+    List<PaymentAllocation> search(Long requestId, Integer bankTxnId, Integer voucherId, Integer statusId, Pageable pageable);
 }

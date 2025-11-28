@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import jakarta.persistence.Transient;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -50,10 +51,11 @@ public class PaymentAllocation {
     @Column(name = "source_file_id")
     private Integer sourceFileId;
 
-    private String status;
-
     @Column(name = "status_id")
     private Integer statusId;
+
+    @Transient
+    private String status;
 
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
@@ -155,20 +157,20 @@ public class PaymentAllocation {
         this.sourceFileId = sourceFileId;
     }
 
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
     public Integer getStatusId() {
         return statusId;
     }
 
     public void setStatusId(Integer statusId) {
         this.statusId = statusId;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public OffsetDateTime getCreatedAt() {

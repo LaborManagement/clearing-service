@@ -20,8 +20,8 @@ public interface VoucherHeaderRepository extends JpaRepository<VoucherHeader, In
             WHERE (:boardId IS NULL OR v.boardId = :boardId)
               AND (:employerId IS NULL OR v.employerId = :employerId)
               AND (:voucherNumber IS NULL OR v.voucherNumber = :voucherNumber)
-              AND (:status IS NULL OR v.status = :status)
+              AND (:statusId IS NULL OR v.statusId = :statusId)
             ORDER BY v.voucherId DESC
             """)
-    List<VoucherHeader> search(Integer boardId, Integer employerId, String voucherNumber, String status, Pageable pageable);
+    List<VoucherHeader> search(Integer boardId, Integer employerId, String voucherNumber, Integer statusId, Pageable pageable);
 }

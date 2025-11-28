@@ -28,9 +28,11 @@ public class AllocationService {
 
     private static final String STATUS_TYPE_ALLOCATION = "payment_allocation";
     private static final String STATUS_CODE_ALLOCATED = "ALLOCATED";
+    private static final String STATUS_CODE_SETTLED = "SETTLED";
     private static final String STATUS_TYPE_BANK_TXN = "bank_transaction";
     private static final int STATUS_ID_ALLOCATED_TXN = 2;
     private static final int STATUS_ID_SETTLED_TXN = 3;
+    private static final String STATUS_TYPE_REQUEST_SETTLEMENT = "request_settlement";
 
     private final BankTransactionRepository bankTransactionRepository;
     private final PaymentAllocationRepository paymentAllocationRepository;
@@ -38,6 +40,10 @@ public class AllocationService {
     private final StatusService statusService;
     private final TenantAccessDao tenantAccessDao;
     private final SettlementService settlementService;
+    private final int statusIdAllocatedAllocation;
+    private final int statusIdSettledAllocation;
+    private final int statusIdAllocatedRequestSettlement;
+    private final int statusIdSettledRequestSettlement;
 
     public AllocationService(
             BankTransactionRepository bankTransactionRepository,
@@ -52,6 +58,12 @@ public class AllocationService {
         this.statusService = statusService;
         this.tenantAccessDao = tenantAccessDao;
         this.settlementService = settlementService;
+        this.statusIdAllocatedAllocation = statusService.requireStatusId(STATUS_TYPE_ALLOCATION, STATUS_CODE_ALLOCATED);
+        this.statusIdSettledAllocation = statusService.requireStatusId(STATUS_TYPE_ALLOCATION, STATUS_CODE_SETTLED);
+        this.statusIdAllocatedRequestSettlement = statusService.requireStatusId(
+                STATUS_TYPE_REQUEST_SETTLEMENT, STATUS_CODE_ALLOCATED);
+        this.statusIdSettledRequestSettlement = statusService.requireStatusId(
+                STATUS_TYPE_REQUEST_SETTLEMENT, STATUS_CODE_SETTLED);
     }
 
     @Transactional
@@ -114,8 +126,8 @@ public class AllocationService {
         allocation.setAllocationDate(
                 request.getAllocationDate() != null ? request.getAllocationDate() : LocalDate.now());
         allocation.setAllocatedBy(request.getAllocatedBy());
-        allocation.setStatus(STATUS_CODE_ALLOCATED);
-        allocation.setStatusId(statusService.requireStatusId(STATUS_TYPE_ALLOCATION, STATUS_CODE_ALLOCATED));
+        boolean nowSettledAllocation = allocation.getVoucherId() != null;
+        allocation.setStatusId(nowSettledAllocation ? statusIdSettledAllocation : statusIdAllocatedAllocation);
         allocation.setCreatedAt(now);
         allocation.setUpdatedAt(now);
         allocation.setIdempotencyKey(request.getIdempotencyKey());
@@ -168,8 +180,8 @@ public class AllocationService {
         rs.setRemainingAmount(
                 rs.getTotalAmount() != null ? rs.getTotalAmount().subtract(newAllocated) : BigDecimal.ZERO);
         rs.setUpdatedAt(now);
-        rs.setStatusId(statusService.requireStatusId("request_settlement",
-                rs.getRemainingAmount().compareTo(BigDecimal.ZERO) == 0 ? "SETTLED" : "ALLOCATED"));
+        boolean nowSettled = rs.getRemainingAmount().compareTo(BigDecimal.ZERO) == 0;
+        rs.setStatusId(nowSettled ? statusIdSettledRequestSettlement : statusIdAllocatedRequestSettlement);
 
         requestSettlementRepository.save(rs);
         return rs;
@@ -212,7 +224,8 @@ public class AllocationService {
         response.setBankTxnId(allocation.getBankTxnId());
         response.setAllocatedAmount(allocation.getAllocatedAmount());
         response.setAllocationDate(allocation.getAllocationDate());
-        response.setStatus(allocation.getStatus());
+        response.setStatusId(allocation.getStatusId());
+        response.setStatus(statusService.resolveStatusCode(STATUS_TYPE_ALLOCATION, allocation.getStatusId()));
         if (txn != null) {
             response.setRemainingAmount(txn.getRemainingAmount());
         }

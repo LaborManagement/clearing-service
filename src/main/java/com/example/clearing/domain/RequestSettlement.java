@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
@@ -42,11 +43,11 @@ public class RequestSettlement {
     @Column(name = "voucher_id")
     private Long voucherId;
 
-    @Column(name = "status")
-    private String status;
-
     @Column(name = "status_id")
     private Integer statusId;
+
+    @Transient
+    private String status;
 
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
@@ -126,20 +127,20 @@ public class RequestSettlement {
         this.voucherId = voucherId;
     }
 
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
     public Integer getStatusId() {
         return statusId;
     }
 
     public void setStatusId(Integer statusId) {
         this.statusId = statusId;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public OffsetDateTime getCreatedAt() {

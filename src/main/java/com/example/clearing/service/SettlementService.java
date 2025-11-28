@@ -66,14 +66,13 @@ public class SettlementService {
 
         voucherHeader.setTotalAmount(totalAmount);
         voucherHeader.setUpdatedAt(now);
-        voucherHeader.setStatus("POSTED");
         voucherHeader.setStatusId(statusService.requireStatusId("voucher_header", "POSTED"));
         voucherHeaderRepository.save(voucherHeader);
 
         SettlementResponse response = new SettlementResponse();
         response.setEventId(null);
         response.setVoucherId(voucherHeader.getVoucherId());
-        response.setVoucherStatus(voucherHeader.getStatus());
+        response.setVoucherStatus(statusService.resolveStatusCode("voucher_header", voucherHeader.getStatusId()));
         response.setTotalDebit(voucherHeader.getTotalAmount());
         response.setTotalCredit(voucherHeader.getTotalAmount());
         response.setMessage("Voucher posted");
@@ -89,7 +88,6 @@ public class SettlementService {
         vh.setVoucherNumber(voucherNumber);
         vh.setVoucherDate(LocalDate.now());
         vh.setTotalAmount(totalAmount);
-        vh.setStatus("CREATED");
         vh.setStatusId(statusService.requireStatusId("voucher_header", "CREATED"));
         vh.setCreatedAt(now);
         vh.setUpdatedAt(now);

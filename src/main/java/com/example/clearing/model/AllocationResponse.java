@@ -10,6 +10,7 @@ public class AllocationResponse {
     private Integer bankTxnId;
     private BigDecimal allocatedAmount;
     private BigDecimal remainingAmount;
+    private Integer statusId;
     private String status;
     private LocalDate allocationDate;
 
@@ -51,6 +52,14 @@ public class AllocationResponse {
 
     public void setRemainingAmount(BigDecimal remainingAmount) {
         this.remainingAmount = remainingAmount;
+    }
+
+    public Integer getStatusId() {
+        return statusId;
+    }
+
+    public void setStatusId(Integer statusId) {
+        this.statusId = statusId;
     }
 
     public String getStatus() {

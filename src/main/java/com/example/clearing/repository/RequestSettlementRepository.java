@@ -16,8 +16,8 @@ public interface RequestSettlementRepository extends JpaRepository<RequestSettle
             WHERE (:requestId IS NULL OR r.requestId = :requestId)
               AND (:boardId IS NULL OR r.boardId = :boardId)
               AND (:employerId IS NULL OR r.employerId = :employerId)
-              AND (:status IS NULL OR r.status = :status)
+              AND (:statusId IS NULL OR r.statusId = :statusId)
             ORDER BY r.requestSettlementId DESC
             """)
-    List<RequestSettlement> search(Long requestId, Long boardId, Long employerId, String status, Pageable pageable);
+    List<RequestSettlement> search(Long requestId, Long boardId, Long employerId, Integer statusId, Pageable pageable);
 }
