@@ -3,6 +3,7 @@ package com.example.clearing.service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -68,6 +69,22 @@ public class AllocationService {
 
     @Transactional
     public AllocationResponse createAllocation(AllocationRequest request) {
+        return processAllocation(request);
+    }
+
+    @Transactional
+    public List<AllocationResponse> createAllocations(List<AllocationRequest> requests) {
+        if (requests == null || requests.isEmpty()) {
+            throw new IllegalArgumentException("At least one allocation must be provided");
+        }
+        List<AllocationResponse> responses = new ArrayList<>(requests.size());
+        for (AllocationRequest request : requests) {
+            responses.add(processAllocation(request));
+        }
+        return responses;
+    }
+
+    private AllocationResponse processAllocation(AllocationRequest request) {
         TenantAccessDao.TenantAccess tenantAccess = requireTenantAccess();
         if (request.getRequestedAmount() == null || request.getRequestedAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("requestedAmount must be > 0");

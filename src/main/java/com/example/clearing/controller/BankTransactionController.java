@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -21,7 +22,7 @@ import com.example.clearing.domain.BankTransaction;
 import com.example.clearing.model.BankTransactionView;
 import com.example.clearing.model.BankTransactionClaimRequest;
 import com.example.clearing.model.BankTransactionClaimResult;
-import com.example.clearing.model.AllocationRequest;
+import com.example.clearing.model.AllocationBatchRequest;
 import com.example.clearing.model.AllocationResponse;
 import com.example.clearing.service.AllocationService;
 import com.example.clearing.service.BankTransactionClaimService;
@@ -133,16 +134,20 @@ public class BankTransactionController {
 
     @PostMapping("/allocations")
     @Operation(summary = "Create an allocation against a bank transaction and update remaining amount")
-    public ResponseEntity<?> createAllocation(@Valid @RequestBody AllocationRequest request) {
+    public ResponseEntity<?> createAllocation(@Valid @RequestBody AllocationBatchRequest request) {
         try {
-            AllocationResponse response = allocationService.createAllocation(request);
-            return ResponseEntity.ok(response);
+            List<AllocationResponse> responses = allocationService.createAllocations(request.getAllocations());
+            if (request.isSingleAllocationPayload()) {
+                return ResponseEntity.ok(responses.get(0));
+            }
+            return ResponseEntity.ok(responses);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         } catch (IllegalStateException ex) {
             return ResponseEntity.status(409).body(Map.of("error", ex.getMessage()));
         } catch (Exception ex) {
-            log.error("Failed to create allocation for txn {}", request.getBankTxnId(), ex);
+            Integer logTxnId = request.getAllocations().isEmpty() ? null : request.getAllocations().get(0).getBankTxnId();
+            log.error("Failed to create allocation for txn {}", logTxnId, ex);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Unable to create allocation right now"));
         }
