@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 public class BankTransactionView {
 
     private String type;
+    private Long sourceTxnId;
     private Long bankAccountId;
     private String bankAccountNumber;
     private String txnRef;
@@ -23,6 +24,14 @@ public class BankTransactionView {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public Long getSourceTxnId() {
+        return sourceTxnId;
+    }
+
+    public void setSourceTxnId(Long sourceTxnId) {
+        this.sourceTxnId = sourceTxnId;
     }
 
     public Long getBankAccountId() {

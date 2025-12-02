@@ -85,6 +85,10 @@ public class BankTransactionSearchDao {
         public BankTransactionView mapRow(ResultSet rs, int rowNum) throws SQLException {
             BankTransactionView view = new BankTransactionView();
             view.setType(rs.getString("type"));
+            Long sourceTxnId = rs.getObject("source_txn_id", Long.class);
+            if (sourceTxnId != null) {
+                view.setSourceTxnId(sourceTxnId);
+            }
             long bankAccountId = rs.getLong("bank_account_id");
             if (!rs.wasNull()) {
                 view.setBankAccountId(bankAccountId);
