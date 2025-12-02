@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import org.slf4j.Logger;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -79,5 +80,28 @@ public class BankTransactionSearchService {
                 ta.boardId, ta.employerId, bankTxnId, txnRef, isSettled, pageable);
         txns.forEach(txn -> txn.setStatusCode(statusService.resolveStatusCode("bank_transaction", txn.getStatusId())));
         return txns;
+    }
+
+    public Page<BankTransactionView> searchSecure(LocalDate startDate,
+            LocalDate endDate,
+            BigDecimal amount,
+            String drCrFlag,
+            Long bankAccountId,
+            String bankAccountNumber,
+            String txnRef,
+            Pageable pageable) {
+        BankTransactionSearchCriteria criteria = new BankTransactionSearchCriteria();
+        criteria.setAmount(amount);
+        criteria.setDrCrFlag(drCrFlag);
+        criteria.setBankAccountId(bankAccountId);
+        criteria.setBankAccountNumber(bankAccountNumber);
+        criteria.setTxnRef(txnRef);
+
+        log.info(
+                "Secure paginated search for bank transactions startDate={}, endDate={}, amount={}, drCrFlag={}, bankAccountId={}, bankAccountNumber={}, txnRef={}, page={}, size={}",
+                startDate, endDate, amount, drCrFlag, bankAccountId, bankAccountNumber, txnRef,
+                pageable != null ? pageable.getPageNumber() : null,
+                pageable != null ? pageable.getPageSize() : null);
+        return dao.searchPaginated(criteria, startDate, endDate, pageable);
     }
 }

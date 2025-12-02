@@ -10,29 +10,37 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.slf4j.Logger;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.clearing.domain.BankTransaction;
-import com.example.clearing.model.BankTransactionView;
-import com.example.clearing.model.BankTransactionClaimRequest;
-import com.example.clearing.model.BankTransactionClaimResult;
 import com.example.clearing.model.AllocationBatchRequest;
 import com.example.clearing.model.AllocationResponse;
+import com.example.clearing.model.BankTransactionClaimRequest;
+import com.example.clearing.model.BankTransactionClaimResult;
+import com.example.clearing.model.BankTransactionView;
 import com.example.clearing.service.AllocationService;
 import com.example.clearing.service.BankTransactionClaimService;
 import com.example.clearing.service.BankTransactionSearchService;
+import com.shared.common.annotation.SecurePagination;
+import com.shared.common.dto.SecurePaginationRequest;
+import com.shared.common.dto.SecurePaginationResponse;
+import com.shared.common.util.SecurePaginationUtil;
 import com.shared.utilities.logger.LoggerFactoryProvider;
-import jakarta.validation.Valid;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/reconciliation/bank-transactions")
@@ -42,6 +50,7 @@ public class BankTransactionController {
 
     private static final Logger log = LoggerFactoryProvider.getLogger(BankTransactionController.class);
     private static final int MAX_PAGE_SIZE = 200;
+    private static final List<String> SECURE_SORT_FIELDS = List.of("receiptDate", "createdAt", "amount", "id");
 
     private final BankTransactionSearchService searchService;
     private final BankTransactionClaimService claimService;
@@ -85,6 +94,52 @@ public class BankTransactionController {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         } catch (Exception ex) {
             log.error("Failed to search bank transactions", ex);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Unable to search bank transactions right now"));
+        }
+    }
+
+    @PostMapping("/secure")
+    @Operation(summary = "Secure paginated search of reconciliation.vw_all_bank_transactions", description = "Mandatory date range with opaque page tokens; filters by amount, dr_cr_flag, bank_account_id, bank_account_nmbr, txn_ref")
+    @SecurePagination
+    public ResponseEntity<?> searchTransactionsSecure(
+            @Valid @RequestBody SecurePaginationRequest request,
+            @RequestParam(required = false) BigDecimal amount,
+            @RequestParam(required = false) String drCrFlag,
+            @RequestParam(required = false) Long bankAccountId,
+            @RequestParam(name = "bankAccountNmbr", required = false) String bankAccountNmbr,
+            @RequestParam(name = "bankAccountNumber", required = false) String bankAccountNumberAlias,
+            @RequestParam(required = false) String txnRef) {
+        try {
+            SecurePaginationUtil.applyPageToken(request);
+            SecurePaginationUtil.ValidationResult validation = SecurePaginationUtil.validatePaginationRequest(request);
+            if (!validation.isValid()) {
+                return ResponseEntity.badRequest().body(SecurePaginationUtil.createErrorResponse(validation));
+            }
+
+            String bankAccountNumber = resolveAccountNumber(bankAccountNmbr, bankAccountNumberAlias);
+            Sort sort = SecurePaginationUtil.createSecureSort(request, SECURE_SORT_FIELDS);
+            Pageable pageable = PageRequest.of(
+                    request.getPage(),
+                    request.getSize(),
+                    sort);
+
+            Page<BankTransactionView> result = searchService.searchSecure(
+                    validation.getStartDateTime().toLocalDate(),
+                    validation.getEndDateTime().toLocalDate(),
+                    amount,
+                    drCrFlag,
+                    bankAccountId,
+                    bankAccountNumber,
+                    txnRef,
+                    pageable);
+            SecurePaginationResponse<BankTransactionView> response = SecurePaginationUtil.createSecureResponse(result,
+                    request);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        } catch (Exception ex) {
+            log.error("Failed to search bank transactions (secure paginated)", ex);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Unable to search bank transactions right now"));
         }
@@ -146,7 +201,8 @@ public class BankTransactionController {
         } catch (IllegalStateException ex) {
             return ResponseEntity.status(409).body(Map.of("error", ex.getMessage()));
         } catch (Exception ex) {
-            Integer logTxnId = request.getAllocations().isEmpty() ? null : request.getAllocations().get(0).getBankTxnId();
+            Integer logTxnId = request.getAllocations().isEmpty() ? null
+                    : request.getAllocations().get(0).getBankTxnId();
             log.error("Failed to create allocation for txn {}", logTxnId, ex);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Unable to create allocation right now"));
