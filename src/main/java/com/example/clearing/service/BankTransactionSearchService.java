@@ -90,6 +90,10 @@ public class BankTransactionSearchService {
             String bankAccountNumber,
             String txnRef,
             Pageable pageable) {
+        TenantAccessDao.TenantAccess ta = tenantAccessDao.getFirstAccessibleTenant();
+        if (ta == null || ta.boardId == null || ta.employerId == null) {
+            throw new IllegalStateException("User has no tenant access (board/employer) to list bank transactions");
+        }
         BankTransactionSearchCriteria criteria = new BankTransactionSearchCriteria();
         criteria.setAmount(amount);
         criteria.setDrCrFlag(drCrFlag);
@@ -102,6 +106,6 @@ public class BankTransactionSearchService {
                 startDate, endDate, amount, drCrFlag, bankAccountId, bankAccountNumber, txnRef,
                 pageable != null ? pageable.getPageNumber() : null,
                 pageable != null ? pageable.getPageSize() : null);
-        return dao.searchPaginated(criteria, startDate, endDate, pageable);
+        return dao.searchPaginated(criteria, startDate, endDate, ta.boardId, ta.employerId, pageable);
     }
 }

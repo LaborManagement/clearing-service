@@ -80,27 +80,28 @@ class AllocationServiceTest {
         when(statusService.requireStatusId("payment_allocation", "SETTLED")).thenReturn(2);
         when(statusService.requireStatusId("request_settlement", "ALLOCATED")).thenReturn(3);
         when(statusService.requireStatusId("request_settlement", "SETTLED")).thenReturn(4);
-        when(statusService.resolveStatusCode(anyString(), anyInt())).thenReturn("ALLOCATED");
+        lenient().when(statusService.resolveStatusCode(anyString(), anyInt())).thenReturn("ALLOCATED");
 
-        when(bankTransactionRepository.findById(anyInt()))
+        lenient().when(bankTransactionRepository.findById(anyInt()))
                 .thenAnswer(invocation -> Optional.ofNullable(bankTxnStore.get(invocation.getArgument(0))));
-        when(bankTransactionRepository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(bankTransactionRepository.saveAndFlush(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         lenient().when(paymentAllocationRepository.findByIdempotencyKey(anyString()))
                 .thenReturn(Optional.empty());
-        when(paymentAllocationRepository.findByRequestIdAndBankTxnId(anyLong(), anyInt()))
+        lenient().when(paymentAllocationRepository.findByRequestIdAndBankTxnId(anyLong(), anyInt()))
                 .thenAnswer(invocation -> Optional.ofNullable(allocationPairs
                         .get(pairKey(invocation.getArgument(0), invocation.getArgument(1)))));
-        when(paymentAllocationRepository.save(any())).thenAnswer(invocation -> {
+        lenient().when(paymentAllocationRepository.save(any())).thenAnswer(invocation -> {
             PaymentAllocation allocation = invocation.getArgument(0);
             allocation.setAllocationId(allocationCounter.incrementAndGet());
             allocationPairs.put(pairKey(allocation.getRequestId(), allocation.getBankTxnId()), allocation);
             return allocation;
         });
 
-        when(requestSettlementRepository.findByRequestId(anyLong()))
+        lenient().when(requestSettlementRepository.findByRequestId(anyLong()))
                 .thenAnswer(invocation -> Optional.ofNullable(settlementStore.get(invocation.getArgument(0))));
-        when(requestSettlementRepository.save(any())).thenAnswer(invocation -> {
+        lenient().when(requestSettlementRepository.save(any())).thenAnswer(invocation -> {
             RequestSettlement saved = invocation.getArgument(0);
             settlementStore.put(saved.getRequestId(), saved);
             return saved;
@@ -158,6 +159,38 @@ class AllocationServiceTest {
                         createRequest(800L, 777, new BigDecimal("400"), new BigDecimal("50")))));
 
         assertEquals("Allocation already exists for this request and bank transaction", ex.getMessage());
+    }
+
+    @Test
+    void rejectsIdempotencyKeyReuseWithDifferentPayload() {
+        PaymentAllocation existing = new PaymentAllocation();
+        existing.setAllocationId(62);
+        existing.setRequestId(1L);
+        existing.setBankTxnId(4);
+        existing.setAllocatedAmount(new BigDecimal("100"));
+        when(paymentAllocationRepository.findByIdempotencyKey("dup-key"))
+                .thenReturn(Optional.of(existing));
+
+        AllocationRequest request = createRequest(2L, 4, new BigDecimal("200"), new BigDecimal("200"));
+        request.setIdempotencyKey("dup-key");
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> allocationService.createAllocation(request));
+
+        assertEquals("Idempotency key already used for a different allocation payload", ex.getMessage());
+    }
+
+    @Test
+    void rejectsWhenBankTransactionDoesNotHaveEnoughRemainingAmount() {
+        bankTxnStore.put(321, createBankTransaction(321, new BigDecimal("25.00")));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> allocationService.createAllocations(List.of(
+                        createRequest(9001L, 321, new BigDecimal("25.00"), new BigDecimal("30.00")))));
+
+        assertEquals(
+                "Insufficient funds on bank transaction 321: remaining 25.00, requested 30.00",
+                ex.getMessage());
     }
 
     private AllocationRequest createRequest(Long requestId, Integer bankTxnId, BigDecimal requestedAmount,

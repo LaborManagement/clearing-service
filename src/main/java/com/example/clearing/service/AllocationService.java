@@ -91,10 +91,21 @@ public class AllocationService {
         }
         // Idempotent check
         if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank()) {
-            Optional<PaymentAllocation> existing = paymentAllocationRepository.findByIdempotencyKey(
-                    request.getIdempotencyKey().trim());
+            String key = request.getIdempotencyKey().trim();
+            Optional<PaymentAllocation> existing = paymentAllocationRepository.findByIdempotencyKey(key);
             if (existing.isPresent()) {
-                return toResponse(existing.get(), null);
+                PaymentAllocation allocation = existing.get();
+                boolean matchesRequest = allocation.getRequestId().equals(request.getRequestId())
+                        && allocation.getBankTxnId().equals(request.getBankTxnId())
+                        && allocation.getAllocatedAmount() != null
+                        && allocation.getAllocatedAmount().compareTo(request.getAllocatedAmount()) == 0;
+                if (!matchesRequest) {
+                    throw new IllegalStateException("Idempotency key already used for a different allocation payload");
+                }
+                BankTransaction existingTxn = bankTransactionRepository
+                        .findById(allocation.getBankTxnId())
+                        .orElse(null);
+                return toResponse(allocation, existingTxn);
             }
         }
 
@@ -116,7 +127,9 @@ public class AllocationService {
 
         BigDecimal remaining = txn.getRemainingAmount() == null ? BigDecimal.ZERO : txn.getRemainingAmount();
         if (remaining.compareTo(amount) < 0) {
-            throw new IllegalStateException("Insufficient remaining amount on bank transaction");
+            throw new IllegalStateException(String.format(
+                    "Insufficient funds on bank transaction %d: remaining %s, requested %s",
+                    txn.getBankTxnId(), remaining, amount));
         }
 
         OffsetDateTime now = OffsetDateTime.now();

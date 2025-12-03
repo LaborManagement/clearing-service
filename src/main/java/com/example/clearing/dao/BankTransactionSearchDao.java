@@ -27,11 +27,16 @@ public class BankTransactionSearchDao {
 
     private static final Logger log = LoggerFactoryProvider.getLogger(BankTransactionSearchDao.class);
     private static final String BASE_SELECT_TEMPLATE = "sql/reconciliation/bank_transactions_base_select.sql";
-    private static final Map<String, String> SORT_COLUMN_MAP = Map.of(
+    private static final Map<String, String> SORT_COLUMN_MAP_VIEW = Map.of(
             "receiptDate", "v.txn_date",
             "createdAt", "v.created_at",
             "amount", "v.amount",
             "id", "v.source_txn_id");
+    private static final Map<String, String> SORT_COLUMN_MAP_BANK_TXN = Map.of(
+            "receiptDate", "bt.txn_date",
+            "createdAt", "bt.created_at",
+            "amount", "bt.amount",
+            "id", "bt.source_txn_id");
 
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final SqlTemplateLoader sqlTemplates;
@@ -88,33 +93,53 @@ public class BankTransactionSearchDao {
     }
 
     public Page<BankTransactionView> searchPaginated(BankTransactionSearchCriteria criteria,
-            LocalDate startDate, LocalDate endDate, Pageable pageable) {
+            LocalDate startDate, LocalDate endDate, Integer boardId, Integer employerId, Pageable pageable) {
         if (startDate == null || endDate == null) {
             throw new IllegalArgumentException("startDate and endDate are required for secure pagination");
         }
 
-        String baseSql = sqlTemplates.load(BASE_SELECT_TEMPLATE);
+        String baseSql = """
+                SELECT
+                    bt.txn_type AS type,
+                    bt.source_system,
+                    bt.source_txn_id,
+                    bt.bank_account_id,
+                    ba.account_no AS bank_account_number,
+                    bt.txn_ref,
+                    bt.txn_date,
+                    bt.amount,
+                    bt.dr_cr_flag,
+                    bt.description,
+                    NULL::boolean AS is_mapped,
+                    bt.created_at
+                FROM clearing.bank_transaction bt
+                LEFT JOIN reconciliation.bank_account ba ON ba.id = bt.bank_account_id
+                WHERE bt.board_id = :boardId
+                  AND bt.employer_id = :employerId
+                """;
         StringBuilder filters = new StringBuilder();
         Map<String, Object> params = new HashMap<>();
 
-        filters.append(" AND v.txn_date BETWEEN :startDate AND :endDate");
+        filters.append(" AND bt.txn_date BETWEEN :startDate AND :endDate");
         params.put("startDate", startDate);
         params.put("endDate", endDate);
+        params.put("boardId", boardId);
+        params.put("employerId", employerId);
 
         if (criteria.getTxnDate() != null) {
-            filters.append(" AND v.txn_date = :txnDate");
+            filters.append(" AND bt.txn_date = :txnDate");
             params.put("txnDate", criteria.getTxnDate());
         }
         if (criteria.getAmount() != null) {
-            filters.append(" AND v.amount = :amount");
+            filters.append(" AND bt.amount = :amount");
             params.put("amount", criteria.getAmount());
         }
         if (hasText(criteria.getDrCrFlag())) {
-            filters.append(" AND UPPER(v.dr_cr_flag) = :drCrFlag");
+            filters.append(" AND UPPER(bt.dr_cr_flag) = :drCrFlag");
             params.put("drCrFlag", criteria.getDrCrFlag().trim().toUpperCase());
         }
         if (criteria.getBankAccountId() != null) {
-            filters.append(" AND v.bank_account_id = :bankAccountId");
+            filters.append(" AND bt.bank_account_id = :bankAccountId");
             params.put("bankAccountId", criteria.getBankAccountId());
         }
         if (hasText(criteria.getBankAccountNumber())) {
@@ -122,13 +147,13 @@ public class BankTransactionSearchDao {
             params.put("bankAccountNumber", criteria.getBankAccountNumber().trim());
         }
         if (hasText(criteria.getTxnRef())) {
-            filters.append(" AND v.txn_ref = :txnRef");
+            filters.append(" AND bt.txn_ref = :txnRef");
             params.put("txnRef", criteria.getTxnRef().trim());
         }
 
         Sort sort = pageable != null ? pageable.getSort() : Sort.unsorted();
         StringBuilder sql = new StringBuilder(baseSql).append(filters);
-        appendOrderBy(sql, sort);
+        appendOrderBy(sql, sort, SORT_COLUMN_MAP_BANK_TXN);
 
         if (pageable != null) {
             sql.append(" LIMIT :limit OFFSET :offset");
@@ -151,9 +176,9 @@ public class BankTransactionSearchDao {
         return value != null && !value.trim().isEmpty();
     }
 
-    private void appendOrderBy(StringBuilder sql, Sort sort) {
+    private void appendOrderBy(StringBuilder sql, Sort sort, Map<String, String> sortColumnMap) {
         if (sort == null || sort.isUnsorted()) {
-            sql.append(" ORDER BY v.txn_date DESC, v.created_at DESC");
+            sql.append(" ORDER BY txn_date DESC, created_at DESC");
             return;
         }
         sql.append(" ORDER BY ");
@@ -162,7 +187,7 @@ public class BankTransactionSearchDao {
             if (!first) {
                 sql.append(", ");
             }
-            String column = SORT_COLUMN_MAP.getOrDefault(order.getProperty(), "v.created_at");
+            String column = sortColumnMap.getOrDefault(order.getProperty(), "created_at");
             sql.append(column).append(order.isAscending() ? " ASC" : " DESC");
             first = false;
         }
@@ -173,10 +198,7 @@ public class BankTransactionSearchDao {
         public BankTransactionView mapRow(ResultSet rs, int rowNum) throws SQLException {
             BankTransactionView view = new BankTransactionView();
             view.setType(rs.getString("type"));
-            Long sourceTxnId = rs.getObject("source_txn_id", Long.class);
-            if (sourceTxnId != null) {
-                view.setSourceTxnId(sourceTxnId);
-            }
+            view.setSourceTxnId(rs.getString("source_txn_id"));
             long bankAccountId = rs.getLong("bank_account_id");
             if (!rs.wasNull()) {
                 view.setBankAccountId(bankAccountId);
