@@ -10,7 +10,8 @@ SELECT
     v.dr_cr_flag,
     v.description,
     v.is_mapped,
-    v.created_at
+    v.created_at,
+    NULL::integer AS status_id
 FROM reconciliation.vw_all_bank_transactions v
 LEFT JOIN reconciliation.bank_account ba ON ba.id = v.bank_account_id
 WHERE 1=1

@@ -1,10 +1,12 @@
 package com.example.clearing.model;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class BankTransactionView {
 
     private String type;
@@ -16,7 +18,6 @@ public class BankTransactionView {
     private BigDecimal amount;
     private String drCrFlag;
     private String description;
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     private Boolean mapped;
     private LocalDateTime createdAt;
     private Integer statusId;
