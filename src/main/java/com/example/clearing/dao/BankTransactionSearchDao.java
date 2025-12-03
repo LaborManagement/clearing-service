@@ -111,7 +111,8 @@ public class BankTransactionSearchDao {
                     bt.dr_cr_flag,
                     bt.description,
                     NULL::boolean AS is_mapped,
-                    bt.created_at
+                    bt.created_at,
+                    bt.status_id
                 FROM clearing.bank_transaction bt
                 LEFT JOIN reconciliation.bank_account ba ON ba.id = bt.bank_account_id
                 WHERE bt.board_id = :boardId
@@ -149,6 +150,10 @@ public class BankTransactionSearchDao {
         if (hasText(criteria.getTxnRef())) {
             filters.append(" AND bt.txn_ref = :txnRef");
             params.put("txnRef", criteria.getTxnRef().trim());
+        }
+        if (criteria.getStatusId() != null) {
+            filters.append(" AND bt.status_id = :statusId");
+            params.put("statusId", criteria.getStatusId());
         }
 
         Sort sort = pageable != null ? pageable.getSort() : Sort.unsorted();
@@ -219,6 +224,10 @@ public class BankTransactionSearchDao {
             java.sql.Timestamp createdAt = rs.getTimestamp("created_at");
             if (createdAt != null) {
                 view.setCreatedAt(createdAt.toLocalDateTime());
+            }
+            Integer statusId = rs.getObject("status_id", Integer.class);
+            if (statusId != null) {
+                view.setStatusId(statusId);
             }
             return view;
         }

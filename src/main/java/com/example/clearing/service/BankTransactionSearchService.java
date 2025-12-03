@@ -89,6 +89,7 @@ public class BankTransactionSearchService {
             Long bankAccountId,
             String bankAccountNumber,
             String txnRef,
+            String statusCode,
             Pageable pageable) {
         TenantAccessDao.TenantAccess ta = tenantAccessDao.getFirstAccessibleTenant();
         if (ta == null || ta.boardId == null || ta.employerId == null) {
@@ -100,12 +101,23 @@ public class BankTransactionSearchService {
         criteria.setBankAccountId(bankAccountId);
         criteria.setBankAccountNumber(bankAccountNumber);
         criteria.setTxnRef(txnRef);
+        Integer resolvedStatusId = statusCode != null && !statusCode.isBlank()
+                ? statusService.requireStatusId("bank_transaction", statusCode.trim())
+                : null;
+        criteria.setStatusId(resolvedStatusId);
 
         log.info(
-                "Secure paginated search for bank transactions startDate={}, endDate={}, amount={}, drCrFlag={}, bankAccountId={}, bankAccountNumber={}, txnRef={}, page={}, size={}",
-                startDate, endDate, amount, drCrFlag, bankAccountId, bankAccountNumber, txnRef,
+                "Secure paginated search for bank transactions startDate={}, endDate={}, amount={}, drCrFlag={}, bankAccountId={}, bankAccountNumber={}, txnRef={}, statusId={}, page={}, size={}",
+                startDate, endDate, amount, drCrFlag, bankAccountId, bankAccountNumber, txnRef, resolvedStatusId,
                 pageable != null ? pageable.getPageNumber() : null,
                 pageable != null ? pageable.getPageSize() : null);
-        return dao.searchPaginated(criteria, startDate, endDate, ta.boardId, ta.employerId, pageable);
+        Page<BankTransactionView> result = dao.searchPaginated(
+                criteria, startDate, endDate, ta.boardId, ta.employerId, pageable);
+        result.forEach(v -> {
+            if (v.getStatusId() != null) {
+                v.setStatus(statusService.resolveStatusCode("bank_transaction", v.getStatusId()));
+            }
+        });
+        return result;
     }
 }

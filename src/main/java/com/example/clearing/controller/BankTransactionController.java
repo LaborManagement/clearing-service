@@ -132,6 +132,7 @@ public class BankTransactionController {
                     bankAccountId,
                     bankAccountNumber,
                     txnRef,
+                    request.getStatus(),
                     pageable);
             SecurePaginationResponse<BankTransactionView> response = SecurePaginationUtil.createSecureResponse(result,
                     request);

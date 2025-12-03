@@ -11,6 +11,7 @@ public class BankTransactionSearchCriteria {
     private Long bankAccountId;
     private String bankAccountNumber;
     private String txnRef;
+    private Integer statusId;
 
     public LocalDate getTxnDate() {
         return txnDate;
@@ -66,6 +67,15 @@ public class BankTransactionSearchCriteria {
                 || (drCrFlag != null && !drCrFlag.trim().isEmpty())
                 || bankAccountId != null
                 || (bankAccountNumber != null && !bankAccountNumber.trim().isEmpty())
-                || (txnRef != null && !txnRef.trim().isEmpty());
+                || (txnRef != null && !txnRef.trim().isEmpty())
+                || statusId != null;
+    }
+
+    public Integer getStatusId() {
+        return statusId;
+    }
+
+    public void setStatusId(Integer statusId) {
+        this.statusId = statusId;
     }
 }
