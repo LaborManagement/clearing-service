@@ -27,6 +27,7 @@ import com.example.clearing.model.AllocationBatchRequest;
 import com.example.clearing.model.AllocationResponse;
 import com.example.clearing.model.BankTransactionClaimRequest;
 import com.example.clearing.model.BankTransactionClaimResult;
+import com.example.clearing.model.BankTransactionDirectClaimRequest;
 import com.example.clearing.model.BankTransactionView;
 import com.example.clearing.service.AllocationService;
 import com.example.clearing.service.BankTransactionClaimService;
@@ -170,9 +171,7 @@ public class BankTransactionController {
     @PostMapping("/claim")
     @Operation(summary = "Claim a reconciliation transaction and import into clearing.bank_transaction")
     public ResponseEntity<?> claimTransaction(@Valid @RequestBody BankTransactionClaimRequest request) {
-        String claimedBy = (request.getClaimedBy() == null || request.getClaimedBy().isBlank())
-                ? "system"
-                : request.getClaimedBy().trim();
+        String claimedBy = resolveClaimedBy(request.getClaimedBy());
         try {
             BankTransactionClaimResult result = claimService.claimFromRecon(
                     request.getType(), request.getSourceTxnId(), claimedBy);
@@ -185,6 +184,26 @@ public class BankTransactionController {
             log.error("Failed to claim bank transaction {}", request.getSourceTxnId(), ex);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Unable to claim bank transaction right now"));
+        }
+    }
+
+    @PostMapping("/claim-direct")
+    @Operation(summary = "Import a reconciliation transaction payload into clearing.bank_transaction without DB reach-through")
+    public ResponseEntity<?> claimTransactionDirect(
+            @Valid @RequestBody BankTransactionDirectClaimRequest request,
+            @RequestParam(name = "claimedBy", required = false) String claimedBy) {
+        String resolvedClaimedBy = resolveClaimedBy(claimedBy);
+        try {
+            BankTransactionClaimResult result = claimService.claimFromPayload(request, resolvedClaimedBy);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(409).body(Map.of("error", ex.getMessage()));
+        } catch (Exception ex) {
+            log.error("Failed to import bank transaction {}", request.getSourceTxnId(), ex);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Unable to import bank transaction right now"));
         }
     }
 
@@ -218,6 +237,13 @@ public class BankTransactionController {
             return bankAccountNmbr.trim();
         }
         return null;
+    }
+
+    private String resolveClaimedBy(String claimedBy) {
+        if (claimedBy == null || claimedBy.isBlank()) {
+            return "system";
+        }
+        return claimedBy.trim();
     }
 
     private LocalDate parseTxnDate(String raw) {

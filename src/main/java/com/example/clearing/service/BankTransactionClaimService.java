@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import com.example.clearing.model.BankTransactionDirectClaimRequest;
 import com.example.clearing.model.BankTransactionClaimResult;
 import com.shared.common.dao.TenantAccessDao;
 
@@ -48,7 +49,13 @@ public class BankTransactionClaimService {
 
         OffsetDateTime now = OffsetDateTime.now();
         markSourceMapped(normalizedType, sourceTxnId);
-        Integer bankTxnId = upsertClearingBankTxn(normalizedType, sourceTxn, claimedBy, now, tenantAccess);
+        Integer bankTxnId = upsertClearingBankTxn(
+                normalizedType,
+                sourceTxn,
+                claimedBy,
+                now,
+                tenantAccess,
+                sourceTxn.amount);
 
         BankTransactionClaimResult result = new BankTransactionClaimResult();
         result.setBankTxnId(bankTxnId);
@@ -61,6 +68,61 @@ public class BankTransactionClaimService {
         result.setAmount(sourceTxn.amount);
         result.setDrCrFlag(sourceTxn.drCrFlag);
         result.setDescription(sourceTxn.description);
+        result.setClaimedBy(claimedBy);
+        result.setClaimedAt(now);
+        return result;
+    }
+
+    @Transactional
+    public BankTransactionClaimResult claimFromPayload(BankTransactionDirectClaimRequest request, String claimedBy) {
+        if (request == null) {
+            throw new IllegalArgumentException("request payload is required");
+        }
+        String normalizedType = normalizeType(request.getType());
+        Long parsedSourceTxnId = parseSourceTxnId(request.getSourceTxnId());
+        if (request.getBankAccountId() == null) {
+            throw new IllegalArgumentException("bankAccountId is required");
+        }
+        if (request.getTxnDate() == null) {
+            throw new IllegalArgumentException("txnDate is required");
+        }
+        BigDecimal amount = request.getAmount();
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("amount must be greater than zero");
+        }
+        String drCrFlag = normalizeDrCrFlag(request.getDrCrFlag());
+
+        TenantAccessDao.TenantAccess tenantAccess = requireTenantAccess();
+        OffsetDateTime now = OffsetDateTime.now();
+
+        SourceTxnRow row = new SourceTxnRow();
+        row.sourceTxnId = parsedSourceTxnId;
+        row.bankAccountId = request.getBankAccountId();
+        row.txnRef = trimToNull(request.getTxnRef());
+        row.txnDate = request.getTxnDate();
+        row.amount = amount;
+        row.drCrFlag = drCrFlag;
+        row.description = request.getDescription();
+
+        Integer bankTxnId = upsertClearingBankTxn(
+                normalizedType,
+                row,
+                claimedBy,
+                now,
+                tenantAccess,
+                amount);
+
+        BankTransactionClaimResult result = new BankTransactionClaimResult();
+        result.setBankTxnId(bankTxnId);
+        result.setTxnType(normalizedType);
+        result.setSourceSystem(SOURCE_SYSTEM);
+        result.setSourceTxnId(parsedSourceTxnId);
+        result.setBankAccountId(row.bankAccountId);
+        result.setTxnRef(row.txnRef);
+        result.setTxnDate(row.txnDate);
+        result.setAmount(row.amount);
+        result.setDrCrFlag(row.drCrFlag);
+        result.setDescription(row.description);
         result.setClaimedBy(claimedBy);
         result.setClaimedAt(now);
         return result;
@@ -178,7 +240,8 @@ public class BankTransactionClaimService {
             SourceTxnRow row,
             String claimedBy,
             OffsetDateTime claimedAt,
-            TenantAccessDao.TenantAccess tenantAccess) {
+            TenantAccessDao.TenantAccess tenantAccess,
+            BigDecimal remainingAmount) {
         String sql = """
                 INSERT INTO clearing.bank_transaction (
                     bank_account_id,
@@ -212,7 +275,7 @@ public class BankTransactionClaimService {
                     :drCrFlag,
                     :description,
                     0,
-                    :amount,
+                    :remainingAmount,
                     1,
                     :statusId,
                     :boardId,
@@ -252,6 +315,7 @@ public class BankTransactionClaimService {
                 .addValue("amount", row.amount)
                 .addValue("drCrFlag", row.drCrFlag)
                 .addValue("description", row.description)
+                .addValue("remainingAmount", remainingAmount != null ? remainingAmount : row.amount)
                 .addValue("claimedAt", claimedAt)
                 .addValue("txnType", type)
                 .addValue("sourceSystem", SOURCE_SYSTEM)
@@ -275,6 +339,32 @@ public class BankTransactionClaimService {
             throw new IllegalArgumentException("type is required");
         }
         return type.trim().toUpperCase();
+    }
+
+    private String normalizeDrCrFlag(String drCrFlag) {
+        if (drCrFlag == null || drCrFlag.trim().isEmpty()) {
+            throw new IllegalArgumentException("drCrFlag is required");
+        }
+        return drCrFlag.trim().toUpperCase();
+    }
+
+    private Long parseSourceTxnId(String sourceTxnId) {
+        if (sourceTxnId == null || sourceTxnId.trim().isEmpty()) {
+            throw new IllegalArgumentException("sourceTxnId is required");
+        }
+        try {
+            return Long.valueOf(sourceTxnId.trim());
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("sourceTxnId must be numeric");
+        }
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private static class SourceTxnRow {
