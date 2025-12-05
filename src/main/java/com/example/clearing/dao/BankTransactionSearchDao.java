@@ -103,16 +103,18 @@ public class BankTransactionSearchDao {
                     bt.txn_type AS type,
                     bt.source_system,
                     bt.source_txn_id,
-                    bt.bank_account_id,
-                    ba.account_no AS bank_account_number,
-                    bt.txn_ref,
-                    bt.txn_date,
-                    bt.amount,
-                    bt.dr_cr_flag,
-                    bt.description,
-                    NULL::boolean AS is_mapped,
-                    bt.created_at,
-                    bt.status_id
+                bt.bank_account_id,
+                ba.account_no AS bank_account_number,
+                bt.txn_ref,
+                bt.txn_date,
+                bt.amount,
+                bt.allocated_amount,
+                bt.remaining_amount,
+                bt.dr_cr_flag,
+                bt.description,
+                NULL::boolean AS is_mapped,
+                bt.created_at,
+                bt.status_id
                 FROM clearing.bank_transaction bt
                 LEFT JOIN reconciliation.bank_account ba ON ba.id = bt.bank_account_id
                 WHERE bt.board_id = :boardId
@@ -217,6 +219,12 @@ public class BankTransactionSearchDao {
             }
 
             view.setAmount(rs.getBigDecimal("amount"));
+            if (hasColumn(rs, "allocated_amount")) {
+                view.setAllocatedAmount(rs.getBigDecimal("allocated_amount"));
+            }
+            if (hasColumn(rs, "remaining_amount")) {
+                view.setRemainingAmount(rs.getBigDecimal("remaining_amount"));
+            }
             view.setDrCrFlag(rs.getString("dr_cr_flag"));
             view.setDescription(rs.getString("description"));
             view.setMapped(rs.getObject("is_mapped", Boolean.class));
@@ -230,6 +238,14 @@ public class BankTransactionSearchDao {
                 view.setStatusId(statusId);
             }
             return view;
+        }
+
+        private boolean hasColumn(ResultSet rs, String columnLabel) {
+            try {
+                return rs.findColumn(columnLabel) > 0;
+            } catch (SQLException ex) {
+                return false;
+            }
         }
     }
 }

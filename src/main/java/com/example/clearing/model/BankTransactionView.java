@@ -16,6 +16,8 @@ public class BankTransactionView {
     private String txnRef;
     private LocalDate txnDate;
     private BigDecimal amount;
+    private BigDecimal allocatedAmount;
+    private BigDecimal remainingAmount;
     private String drCrFlag;
     private String description;
     private Boolean mapped;
@@ -77,6 +79,22 @@ public class BankTransactionView {
 
     public void setAmount(BigDecimal amount) {
         this.amount = amount;
+    }
+
+    public BigDecimal getAllocatedAmount() {
+        return allocatedAmount;
+    }
+
+    public void setAllocatedAmount(BigDecimal allocatedAmount) {
+        this.allocatedAmount = allocatedAmount;
+    }
+
+    public BigDecimal getRemainingAmount() {
+        return remainingAmount;
+    }
+
+    public void setRemainingAmount(BigDecimal remainingAmount) {
+        this.remainingAmount = remainingAmount;
     }
 
     public String getDrCrFlag() {
