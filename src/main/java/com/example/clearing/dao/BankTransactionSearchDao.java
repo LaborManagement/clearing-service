@@ -121,7 +121,7 @@ public class BankTransactionSearchDao {
         StringBuilder filters = new StringBuilder();
         Map<String, Object> params = new HashMap<>();
 
-        filters.append(" AND bt.txn_date BETWEEN :startDate AND :endDate");
+        filters.append(" AND bt.created_at::date BETWEEN :startDate AND :endDate");
         params.put("startDate", startDate);
         params.put("endDate", endDate);
         params.put("boardId", boardId);

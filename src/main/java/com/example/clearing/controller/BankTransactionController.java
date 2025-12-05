@@ -101,7 +101,7 @@ public class BankTransactionController {
     }
 
     @PostMapping("/secure")
-    @Operation(summary = "Secure paginated search of clearing.bank_transactions", description = "Mandatory date range with opaque page tokens; filters by amount, dr_cr_flag, bank_account_id, bank_account_nmbr, txn_ref")
+    @Operation(summary = "Secure paginated search of clearing.bank_transactions", description = "Mandatory date range (filters on created_at) with opaque page tokens; filters by amount, dr_cr_flag, bank_account_id, bank_account_nmbr, txn_ref")
     @SecurePagination
     public ResponseEntity<?> searchTransactionsSecure(
             @Valid @RequestBody SecurePaginationRequest request,
