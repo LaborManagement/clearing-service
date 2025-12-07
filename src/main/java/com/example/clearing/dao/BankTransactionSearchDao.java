@@ -2,11 +2,10 @@ package com.example.clearing.dao;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import java.time.LocalDate;
 
 import org.slf4j.Logger;
 import org.springframework.data.domain.Page;
@@ -27,11 +26,6 @@ public class BankTransactionSearchDao {
 
     private static final Logger log = LoggerFactoryProvider.getLogger(BankTransactionSearchDao.class);
     private static final String BASE_SELECT_TEMPLATE = "sql/reconciliation/bank_transactions_base_select.sql";
-    private static final Map<String, String> SORT_COLUMN_MAP_VIEW = Map.of(
-            "receiptDate", "v.txn_date",
-            "createdAt", "v.created_at",
-            "amount", "v.amount",
-            "id", "v.source_txn_id");
     private static final Map<String, String> SORT_COLUMN_MAP_BANK_TXN = Map.of(
             "receiptDate", "bt.txn_date",
             "createdAt", "bt.created_at",
