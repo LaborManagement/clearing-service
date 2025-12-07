@@ -5,6 +5,7 @@ SELECT
     v.bank_account_id,
     ba.account_no AS bank_account_number,
     v.txn_ref,
+    NULL::varchar AS internal_ref,
     v.txn_date,
     v.amount,
     v.dr_cr_flag,

@@ -12,6 +12,7 @@ public class BankTransactionClaimResult {
     private Long sourceTxnId;
     private Long bankAccountId;
     private String txnRef;
+    private String internalRef;
     private LocalDate txnDate;
     private BigDecimal amount;
     private String drCrFlag;
@@ -65,6 +66,14 @@ public class BankTransactionClaimResult {
 
     public void setTxnRef(String txnRef) {
         this.txnRef = txnRef;
+    }
+
+    public String getInternalRef() {
+        return internalRef;
+    }
+
+    public void setInternalRef(String internalRef) {
+        this.internalRef = internalRef;
     }
 
     public LocalDate getTxnDate() {

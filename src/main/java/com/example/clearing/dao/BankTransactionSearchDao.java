@@ -106,6 +106,7 @@ public class BankTransactionSearchDao {
                 bt.bank_account_id,
                 ba.account_no AS bank_account_number,
                 bt.txn_ref,
+                bt.internal_ref,
                 bt.txn_date,
                 bt.amount,
                 bt.allocated_amount,
@@ -212,6 +213,9 @@ public class BankTransactionSearchDao {
             }
             view.setBankAccountNumber(rs.getString("bank_account_number"));
             view.setTxnRef(rs.getString("txn_ref"));
+            if (hasColumn(rs, "internal_ref")) {
+                view.setInternalRef(rs.getString("internal_ref"));
+            }
 
             java.sql.Date txnDate = rs.getDate("txn_date");
             if (txnDate != null) {

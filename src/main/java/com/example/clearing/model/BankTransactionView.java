@@ -14,6 +14,7 @@ public class BankTransactionView {
     private Long bankAccountId;
     private String bankAccountNumber;
     private String txnRef;
+    private String internalRef;
     private LocalDate txnDate;
     private BigDecimal amount;
     private BigDecimal allocatedAmount;
@@ -63,6 +64,14 @@ public class BankTransactionView {
 
     public void setTxnRef(String txnRef) {
         this.txnRef = txnRef;
+    }
+
+    public String getInternalRef() {
+        return internalRef;
+    }
+
+    public void setInternalRef(String internalRef) {
+        this.internalRef = internalRef;
     }
 
     public LocalDate getTxnDate() {

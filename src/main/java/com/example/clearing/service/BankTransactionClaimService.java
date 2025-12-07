@@ -63,6 +63,7 @@ public class BankTransactionClaimService {
         result.setSourceTxnId(sourceTxnId);
         result.setBankAccountId(sourceTxn.bankAccountId);
         result.setTxnRef(sourceTxn.txnRef);
+        result.setInternalRef(sourceTxn.txnRef);
         result.setTxnDate(sourceTxn.txnDate);
         result.setAmount(sourceTxn.amount);
         result.setDrCrFlag(sourceTxn.drCrFlag);
@@ -190,6 +191,7 @@ public class BankTransactionClaimService {
                 INSERT INTO clearing.bank_transaction (
                     bank_account_id,
                     txn_ref,
+                    internal_ref,
                     txn_date,
                     amount,
                     dr_cr_flag,
@@ -214,6 +216,7 @@ public class BankTransactionClaimService {
                 VALUES (
                     :bankAccountId,
                     :txnRef,
+                    :internalRef,
                     :txnDate,
                     :amount,
                     :drCrFlag,
@@ -240,6 +243,7 @@ public class BankTransactionClaimService {
                     claimed_by = EXCLUDED.claimed_by,
                     claimed_at = EXCLUDED.claimed_at,
                     description = COALESCE(EXCLUDED.description, clearing.bank_transaction.description),
+                    internal_ref = COALESCE(EXCLUDED.internal_ref, clearing.bank_transaction.internal_ref),
                     txn_ref = COALESCE(EXCLUDED.txn_ref, clearing.bank_transaction.txn_ref),
                     txn_date = COALESCE(EXCLUDED.txn_date, clearing.bank_transaction.txn_date),
                     amount = COALESCE(EXCLUDED.amount, clearing.bank_transaction.amount),
@@ -255,6 +259,7 @@ public class BankTransactionClaimService {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("bankAccountId", row.bankAccountId)
                 .addValue("txnRef", row.txnRef)
+                .addValue("internalRef", row.txnRef)
                 .addValue("txnDate", row.txnDate)
                 .addValue("amount", row.amount)
                 .addValue("drCrFlag", row.drCrFlag)

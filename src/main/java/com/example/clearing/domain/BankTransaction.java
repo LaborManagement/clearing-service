@@ -27,6 +27,9 @@ public class BankTransaction {
     @Column(name = "txn_ref")
     private String txnRef;
 
+    @Column(name = "internal_ref")
+    private String internalRef;
+
     @Column(name = "txn_date")
     private LocalDate txnDate;
 
@@ -114,6 +117,14 @@ public class BankTransaction {
 
     public void setTxnRef(String txnRef) {
         this.txnRef = txnRef;
+    }
+
+    public String getInternalRef() {
+        return internalRef;
+    }
+
+    public void setInternalRef(String internalRef) {
+        this.internalRef = internalRef;
     }
 
     public LocalDate getTxnDate() {
