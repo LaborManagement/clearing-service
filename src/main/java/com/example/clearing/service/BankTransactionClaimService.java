@@ -38,13 +38,16 @@ public class BankTransactionClaimService {
     }
 
     @Transactional
-    public BankTransactionClaimResult claimFromRecon(String type, Long sourceTxnId, String claimedBy) {
+    public BankTransactionClaimResult claimFromRecon(String type, Long sourceTxnId, String claimedBy,
+            String internalRef) {
         String normalizedType = normalizeType(type);
         TenantAccessDao.TenantAccess tenantAccess = requireTenantAccess();
         SourceTxnRow sourceTxn = fetchAndLockSource(normalizedType, sourceTxnId);
         if (Boolean.TRUE.equals(sourceTxn.isMapped)) {
             throw new IllegalStateException("Transaction already mapped/claimed: " + sourceTxnId);
         }
+
+        String resolvedInternalRef = resolveInternalRef(internalRef, sourceTxn.txnRef);
 
         OffsetDateTime now = OffsetDateTime.now();
         markSourceMapped(normalizedType, sourceTxnId);
@@ -54,7 +57,8 @@ public class BankTransactionClaimService {
                 claimedBy,
                 now,
                 tenantAccess,
-                sourceTxn.amount);
+                sourceTxn.amount,
+                resolvedInternalRef);
 
         BankTransactionClaimResult result = new BankTransactionClaimResult();
         result.setBankTxnId(bankTxnId);
@@ -63,7 +67,7 @@ public class BankTransactionClaimService {
         result.setSourceTxnId(sourceTxnId);
         result.setBankAccountId(sourceTxn.bankAccountId);
         result.setTxnRef(sourceTxn.txnRef);
-        result.setInternalRef(sourceTxn.txnRef);
+        result.setInternalRef(resolvedInternalRef);
         result.setTxnDate(sourceTxn.txnDate);
         result.setAmount(sourceTxn.amount);
         result.setDrCrFlag(sourceTxn.drCrFlag);
@@ -186,7 +190,8 @@ public class BankTransactionClaimService {
             String claimedBy,
             OffsetDateTime claimedAt,
             TenantAccessDao.TenantAccess tenantAccess,
-            BigDecimal remainingAmount) {
+            BigDecimal remainingAmount,
+            String internalRef) {
         String sql = """
                 INSERT INTO clearing.bank_transaction (
                     bank_account_id,
@@ -259,7 +264,7 @@ public class BankTransactionClaimService {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("bankAccountId", row.bankAccountId)
                 .addValue("txnRef", row.txnRef)
-                .addValue("internalRef", row.txnRef)
+                .addValue("internalRef", internalRef)
                 .addValue("txnDate", row.txnDate)
                 .addValue("amount", row.amount)
                 .addValue("drCrFlag", row.drCrFlag)
@@ -288,6 +293,13 @@ public class BankTransactionClaimService {
             throw new IllegalArgumentException("type is required");
         }
         return type.trim().toUpperCase();
+    }
+
+    private String resolveInternalRef(String providedInternalRef, String fallback) {
+        if (providedInternalRef != null && !providedInternalRef.isBlank()) {
+            return providedInternalRef.trim();
+        }
+        return fallback;
     }
 
     private String normalizeDrCrFlag(String drCrFlag) {

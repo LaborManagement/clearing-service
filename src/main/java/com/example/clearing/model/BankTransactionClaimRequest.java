@@ -1,5 +1,7 @@
 package com.example.clearing.model;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -12,6 +14,10 @@ public class BankTransactionClaimRequest {
     private Long sourceTxnId;
 
     private String claimedBy;
+
+    @JsonProperty("internal_ref")
+    @JsonAlias("internalRef")
+    private String internalRef;
 
     public String getType() {
         return type;
@@ -35,5 +41,13 @@ public class BankTransactionClaimRequest {
 
     public void setClaimedBy(String claimedBy) {
         this.claimedBy = claimedBy;
+    }
+
+    public String getInternalRef() {
+        return internalRef;
+    }
+
+    public void setInternalRef(String internalRef) {
+        this.internalRef = internalRef;
     }
 }

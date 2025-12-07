@@ -179,7 +179,8 @@ public class BankTransactionController {
                     .map(req -> {
                         validateClaimRequest(req);
                         String claimedBy = resolveClaimedBy(req.getClaimedBy());
-                        return claimService.claimFromRecon(req.getType(), req.getSourceTxnId(), claimedBy);
+                        String internalRef = normalizeInternalRef(req.getInternalRef());
+                        return claimService.claimFromRecon(req.getType(), req.getSourceTxnId(), claimedBy, internalRef);
                     })
                     .toList();
 
@@ -248,6 +249,13 @@ public class BankTransactionController {
             return "system";
         }
         return claimedBy.trim();
+    }
+
+    private String normalizeInternalRef(String internalRef) {
+        if (internalRef == null || internalRef.isBlank()) {
+            return null;
+        }
+        return internalRef.trim();
     }
 
     private LocalDate parseTxnDate(String raw) {
