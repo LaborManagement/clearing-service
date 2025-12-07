@@ -1,16 +1,17 @@
 package com.example.clearing.domain;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
 import jakarta.persistence.Transient;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.OffsetDateTime;
+import jakarta.persistence.Version;
 
 @Entity
 @Table(name = "payment_allocation", schema = "clearing")
@@ -68,6 +69,12 @@ public class PaymentAllocation {
 
     @Column(name = "idempotency_key")
     private String idempotencyKey;
+
+    @Column(name = "employer_receipt_number", length = 40)
+    private String employerReceiptNumber;
+
+    @Column(name = "receipt_date")
+    private LocalDate receiptDate;
 
     public Integer getAllocationId() {
         return allocationId;
@@ -203,5 +210,21 @@ public class PaymentAllocation {
 
     public void setIdempotencyKey(String idempotencyKey) {
         this.idempotencyKey = idempotencyKey;
+    }
+
+    public String getEmployerReceiptNumber() {
+        return employerReceiptNumber;
+    }
+
+    public void setEmployerReceiptNumber(String employerReceiptNumber) {
+        this.employerReceiptNumber = employerReceiptNumber;
+    }
+
+    public LocalDate getReceiptDate() {
+        return receiptDate;
+    }
+
+    public void setReceiptDate(LocalDate receiptDate) {
+        this.receiptDate = receiptDate;
     }
 }

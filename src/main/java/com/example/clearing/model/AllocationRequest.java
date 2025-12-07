@@ -1,9 +1,11 @@
 package com.example.clearing.model;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 
 public class AllocationRequest {
 
@@ -24,6 +26,12 @@ public class AllocationRequest {
     private LocalDate allocationDate;
     private String allocatedBy;
     private String idempotencyKey;
+
+    @Schema(description = "Employer receipt number from payment_flow.employer_payment_receipts", example = "EMP-20251206-160818-106", maxLength = 40)
+    private String employerReceiptNumber;
+
+    @Schema(description = "Receipt date from employer payment receipt", example = "2025-12-06")
+    private LocalDate receiptDate;
 
     public Long getRequestId() {
         return requestId;
@@ -79,5 +87,21 @@ public class AllocationRequest {
 
     public void setIdempotencyKey(String idempotencyKey) {
         this.idempotencyKey = idempotencyKey;
+    }
+
+    public String getEmployerReceiptNumber() {
+        return employerReceiptNumber;
+    }
+
+    public void setEmployerReceiptNumber(String employerReceiptNumber) {
+        this.employerReceiptNumber = employerReceiptNumber;
+    }
+
+    public LocalDate getReceiptDate() {
+        return receiptDate;
+    }
+
+    public void setReceiptDate(LocalDate receiptDate) {
+        this.receiptDate = receiptDate;
     }
 }

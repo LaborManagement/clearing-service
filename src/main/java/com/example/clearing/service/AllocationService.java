@@ -156,6 +156,8 @@ public class AllocationService {
         allocation.setAllocationDate(
                 request.getAllocationDate() != null ? request.getAllocationDate() : LocalDate.now());
         allocation.setAllocatedBy(request.getAllocatedBy());
+        allocation.setEmployerReceiptNumber(request.getEmployerReceiptNumber());
+        allocation.setReceiptDate(request.getReceiptDate());
         boolean nowSettledAllocation = allocation.getVoucherId() != null;
         allocation.setStatusId(nowSettledAllocation ? statusIdSettledAllocation : statusIdAllocatedAllocation);
         allocation.setCreatedAt(now);
