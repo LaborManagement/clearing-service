@@ -10,6 +10,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.RowMapper;
@@ -26,11 +27,6 @@ public class BankTransactionSearchDao {
 
     private static final Logger log = LoggerFactoryProvider.getLogger(BankTransactionSearchDao.class);
     private static final String BASE_SELECT_TEMPLATE = "sql/reconciliation/bank_transactions_base_select.sql";
-    private static final Map<String, String> SORT_COLUMN_MAP_BANK_TXN = Map.of(
-            "receiptDate", "bt.txn_date",
-            "createdAt", "bt.created_at",
-            "amount", "bt.amount",
-            "id", "bt.source_txn_id");
 
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final SqlTemplateLoader sqlTemplates;
@@ -92,24 +88,17 @@ public class BankTransactionSearchDao {
             throw new IllegalArgumentException("startDate and endDate are required for secure pagination");
         }
 
+        // Use grouped query with aggregations
         String baseSql = """
                 SELECT
+                    bt.internal_ref,
+                    bt.txn_ref,
+                    bt.txn_date,
                     bt.txn_type AS type,
-                    bt.source_system,
-                    bt.source_txn_id,
-                bt.bank_account_id,
-                ba.account_no AS bank_account_number,
-                bt.txn_ref,
-                bt.internal_ref,
-                bt.txn_date,
-                bt.amount,
-                bt.allocated_amount,
-                bt.remaining_amount,
-                bt.dr_cr_flag,
-                bt.description,
-                NULL::boolean AS is_mapped,
-                bt.created_at,
-                bt.status_id
+                    bt.status_id,
+                    SUM(bt.amount) AS amount,
+                    SUM(bt.allocated_amount) AS allocated_amount,
+                    SUM(bt.remaining_amount) AS remaining_amount
                 FROM clearing.bank_transaction bt
                 LEFT JOIN reconciliation.bank_account ba ON ba.id = bt.bank_account_id
                 WHERE bt.board_id = :boardId
@@ -153,9 +142,40 @@ public class BankTransactionSearchDao {
             params.put("statusId", criteria.getStatusId());
         }
 
+        // Add GROUP BY clause
+        filters.append("""
+
+                GROUP BY bt.internal_ref,
+                         bt.txn_ref,
+                         bt.txn_date,
+                         bt.txn_type,
+                         bt.status_id
+                """);
+
         Sort sort = pageable != null ? pageable.getSort() : Sort.unsorted();
         StringBuilder sql = new StringBuilder(baseSql).append(filters);
-        appendOrderBy(sql, sort, SORT_COLUMN_MAP_BANK_TXN);
+
+        // Update order by to use grouped columns
+        if (sort == null || sort.isUnsorted()) {
+            sql.append(" ORDER BY bt.txn_date DESC");
+        } else {
+            sql.append(" ORDER BY ");
+            boolean first = true;
+            for (Sort.Order order : sort) {
+                if (!first) {
+                    sql.append(", ");
+                }
+                String column = switch (order.getProperty()) {
+                    case "receiptDate" -> "bt.txn_date";
+                    case "amount" -> "amount";
+                    case "txnRef" -> "bt.txn_ref";
+                    case "internalRef" -> "bt.internal_ref";
+                    default -> "bt.txn_date";
+                };
+                sql.append(column).append(order.isAscending() ? " ASC" : " DESC");
+                first = false;
+            }
+        }
 
         if (pageable != null) {
             sql.append(" LIMIT :limit OFFSET :offset");
@@ -165,36 +185,58 @@ public class BankTransactionSearchDao {
 
         String countSql = "SELECT COUNT(*) FROM (" + baseSql + filters + ") AS count_base";
 
-        log.debug("Executing paginated bank transaction search SQL: {} with params {}", sql, params);
+        log.debug("Executing grouped paginated bank transaction search SQL: {} with params {}", sql, params);
         List<BankTransactionView> results = namedParameterJdbcTemplate.query(
                 sql.toString(),
                 params,
-                new BankTransactionRowMapper());
-        long total = namedParameterJdbcTemplate.queryForObject(countSql, params, Long.class);
-        return new PageImpl<>(results, pageable, total);
+                new BankTransactionGroupedRowMapper());
+
+        Long totalCount = namedParameterJdbcTemplate.queryForObject(countSql, params, Long.class);
+        long total = totalCount != null ? totalCount : 0L;
+
+        Pageable safePageable = pageable != null ? pageable : PageRequest.of(0, 20);
+        return new PageImpl<>(results, safePageable, total);
     }
 
     private boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
     }
 
-    private void appendOrderBy(StringBuilder sql, Sort sort, Map<String, String> sortColumnMap) {
-        if (sort == null || sort.isUnsorted()) {
-            sql.append(" ORDER BY txn_date DESC, created_at DESC");
-            return;
-        }
-        sql.append(" ORDER BY ");
-        boolean first = true;
-        for (Sort.Order order : sort) {
-            if (!first) {
-                sql.append(", ");
+    /**
+     * Row mapper for grouped bank transactions (aggregated by internal_ref,
+     * txn_ref, txn_date, txn_type, status_id)
+     */
+    private static class BankTransactionGroupedRowMapper implements RowMapper<BankTransactionView> {
+        @Override
+        public BankTransactionView mapRow(ResultSet rs, int rowNum) throws SQLException {
+            BankTransactionView view = new BankTransactionView();
+            view.setInternalRef(rs.getString("internal_ref"));
+            view.setTxnRef(rs.getString("txn_ref"));
+
+            java.sql.Date txnDate = rs.getDate("txn_date");
+            if (txnDate != null) {
+                view.setTxnDate(txnDate.toLocalDate());
             }
-            String column = sortColumnMap.getOrDefault(order.getProperty(), "created_at");
-            sql.append(column).append(order.isAscending() ? " ASC" : " DESC");
-            first = false;
+
+            view.setType(rs.getString("type"));
+
+            Integer statusId = rs.getObject("status_id", Integer.class);
+            if (statusId != null) {
+                view.setStatusId(statusId);
+            }
+
+            // Aggregated amounts
+            view.setAmount(rs.getBigDecimal("amount"));
+            view.setAllocatedAmount(rs.getBigDecimal("allocated_amount"));
+            view.setRemainingAmount(rs.getBigDecimal("remaining_amount"));
+
+            return view;
         }
     }
 
+    /**
+     * Row mapper for individual bank transaction records
+     */
     private static class BankTransactionRowMapper implements RowMapper<BankTransactionView> {
         @Override
         public BankTransactionView mapRow(ResultSet rs, int rowNum) throws SQLException {
