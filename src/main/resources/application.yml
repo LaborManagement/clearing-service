@@ -28,6 +28,8 @@ management:
 logging:
   level:
     "[com.example.clearing]": INFO
+    root: INFO
+    com.example.clearing: DEBUG
 
 file:
   upload:
@@ -66,3 +68,10 @@ shared-lib:
       api-key-header: X-Internal-Api-Key
     rls:
       enabled: true
+
+# Payment Flow Service client configuration
+payment-flow:
+  service:
+    url: http://localhost:8081 # Adjust if the port is different
+  internal:
+    api-key: "d4e5f6a7-b8c9-1a2b-3c4d-e5f6a7b8c9d0-a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6" # Same key as in payment-flow-service

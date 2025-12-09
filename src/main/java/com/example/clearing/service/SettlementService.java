@@ -6,9 +6,11 @@ import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import com.example.clearing.client.PaymentFlowClient;
 import com.example.clearing.domain.PaymentAllocation;
 import com.example.clearing.domain.RequestSettlement;
 import com.example.clearing.domain.VoucherHeader;
@@ -19,29 +21,35 @@ import com.example.clearing.repository.PaymentAllocationRepository;
 import com.example.clearing.repository.RequestSettlementRepository;
 import com.example.clearing.repository.VoucherHeaderRepository;
 import com.shared.common.dao.TenantAccessDao;
+import com.shared.utilities.logger.LoggerFactoryProvider;
 
 import jakarta.transaction.Transactional;
 
 @Service
 public class SettlementService {
 
+    private static final Logger log = LoggerFactoryProvider.getLogger(SettlementService.class);
+
     private final VoucherHeaderRepository voucherHeaderRepository;
     private final PaymentAllocationRepository paymentAllocationRepository;
     private final RequestSettlementRepository requestSettlementRepository;
     private final StatusService statusService;
     private final TenantAccessDao tenantAccessDao;
+    private final PaymentFlowClient paymentFlowClient;
 
     public SettlementService(
             VoucherHeaderRepository voucherHeaderRepository,
             PaymentAllocationRepository paymentAllocationRepository,
             RequestSettlementRepository requestSettlementRepository,
             StatusService statusService,
-            TenantAccessDao tenantAccessDao) {
+            TenantAccessDao tenantAccessDao,
+            PaymentFlowClient paymentFlowClient) {
         this.voucherHeaderRepository = voucherHeaderRepository;
         this.paymentAllocationRepository = paymentAllocationRepository;
         this.requestSettlementRepository = requestSettlementRepository;
         this.statusService = statusService;
         this.tenantAccessDao = tenantAccessDao;
+        this.paymentFlowClient = paymentFlowClient;
     }
 
     @Transactional
@@ -68,6 +76,39 @@ public class SettlementService {
         voucherHeader.setUpdatedAt(now);
         voucherHeader.setStatusId(statusService.requireStatusId("voucher_header", "POSTED"));
         voucherHeaderRepository.save(voucherHeader);
+
+        // Update payment status in payment-flow-service via internal API
+        if (request.getRequestId() != null) {
+            try {
+                // Determine if this is a partial or full settlement
+                RequestSettlement requestSettlement = requestSettlementRepository
+                        .findByRequestId(request.getRequestId())
+                        .orElse(null);
+
+                Long statusId;
+                if (requestSettlement != null
+                        && requestSettlement.getRemainingAmount().compareTo(BigDecimal.ZERO) == 0) {
+                    statusId = 5L; // RECONCILED - Fully settled/allocated
+                    log.info("Full settlement detected for requestId: {}, updating to RECONCILED (statusId: 5)",
+                            request.getRequestId());
+                } else {
+                    statusId = 4L; // PARTIALLY_RECONCILED - Partial settlement
+                    log.info(
+                            "Partial settlement detected for requestId: {}, updating to PARTIALLY_RECONCILED (statusId: 4)",
+                            request.getRequestId());
+                }
+
+                paymentFlowClient.updatePaymentStatusById(request.getRequestId(), statusId);
+                log.info("Successfully updated payment status for requestId: {} to statusId: {}",
+                        request.getRequestId(), statusId);
+            } catch (Exception e) {
+                log.error(
+                        "Failed to update payment status for requestId: {} - settlement completed but status sync failed",
+                        request.getRequestId(), e);
+                // Note: Settlement is still successful. This is a status sync issue.
+                // Consider implementing a retry mechanism or reconciliation process.
+            }
+        }
 
         SettlementResponse response = new SettlementResponse();
         response.setEventId(null);

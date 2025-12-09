@@ -89,10 +89,14 @@ public class BankTransactionSearchDao {
         }
 
         // Use grouped query with aggregations
+        // If internal_ref != txn_ref, treat txn_ref as null for grouping
         String baseSql = """
                 SELECT
                     bt.internal_ref,
-                    bt.txn_ref,
+                    CASE
+                        WHEN bt.internal_ref = bt.txn_ref THEN bt.txn_ref
+                        ELSE NULL
+                    END AS txn_ref,
                     bt.txn_date,
                     bt.txn_type AS type,
                     bt.status_id,
@@ -142,13 +146,17 @@ public class BankTransactionSearchDao {
             params.put("statusId", criteria.getStatusId());
         }
 
-        // Add GROUP BY clause
+        // Add GROUP BY clause - group by txn_ref (after CASE logic), txn_date,
+        // txn_type, internal_ref
         filters.append("""
 
-                GROUP BY bt.internal_ref,
-                         bt.txn_ref,
+                GROUP BY CASE
+                             WHEN bt.internal_ref = bt.txn_ref THEN bt.txn_ref
+                             ELSE NULL
+                         END,
                          bt.txn_date,
                          bt.txn_type,
+                         bt.internal_ref,
                          bt.status_id
                 """);
 
