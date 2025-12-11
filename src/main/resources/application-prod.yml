@@ -1,10 +1,11 @@
 # Production configuration (container-friendly defaults)
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://paymentreconciliation.postgres.database.azure.com:5432/paymentreconciliation_prod?sslmode=require&currentSchema=clearing}
+    # url: ${DB_URL:jdbc:postgresql://paymentreconciliation.postgres.database.azure.com:5432/paymentreconciliation_prod?sslmode=require&currentSchema=clearing}
+    url: ${DB_URL:jdbc:postgresql://lbe-dbinstance.cd0sc0k82p15.ap-south-1.rds.amazonaws.com:5432/lbe?sslmode=require&currentSchema=clearing}
     driver-class-name: org.postgresql.Driver
     username: ${DB_USERNAME:app_clearing}
-    password: ${DB_PASSWORD:change-me-in-production}
+    password: ${DB_PASSWORD:root}
     hikari:
       maximum-pool-size: 20
       minimum-idle: 5
@@ -90,7 +91,7 @@ management:
       environment: prod
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:8083}
   compression:
     enabled: true
     mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
@@ -125,9 +126,34 @@ shared-lib:
       - /swagger-ui/**
       - /swagger-ui.html
     introspection:
-      url: ${AUTH_SERVICE_BASE_URL:http://auth-service.payment-recon.svc.cluster.local}/internal/auth/introspect
-      api-key: ${INTERNAL_API_KEY:}
+      url: ${AUTH_SERVICE_BASE_URL:http://localhost:8080}/internal/auth/introspect
+      api-key: ${INTERNAL_API_KEY:4f0d3ac5a91b7fe246d3851c09a2f718f6c8d42704e3b89a1f2d6c7b81e4f0a3}
       api-key-header: X-Internal-Api-Key
+    dynamic-rbac:
+      enabled: true
+      base-url: ${AUTH_BASE_URL:http://localhost:8080}
+      authorization-matrix-path: /internal/authz/users/{userId}/matrix
+      endpoint-metadata-path: /internal/authz/endpoints/metadata
+      api-key: ${INTERNAL_API_KEY:4f0d3ac5a91b7fe246d3851c09a2f718f6c8d42704e3b89a1f2d6c7b81e4f0a3}
+      api-key-header: ${INTERNAL_API_KEY_HEADER:X-Internal-Api-Key}
+      policy-evaluation-enabled: true
+      fail-open: false
+    cors:
+      enabled: true
+      allowed-origins:
+        - ${ALLOWED_ORIGIN_1:http://localhost:5173}
+        - ${ALLOWED_ORIGIN_2:http://localhost:5174}
+      allowed-methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+        - PATCH
+      allowed-headers:
+        - "*"
+      allow-credentials: true
+      max-age: 3600
   audit:
     enabled: true
     table-name: audit.audit_event
@@ -143,3 +169,26 @@ shared-lib:
     source-table: clearing_records
     hashing-algorithm: SHA-256
     initial-hash-value: 0000000000000000000000000000000000000000000000000000000000000000
+  # SFTP Utility Configuration
+  sftp:
+    enabled: false
+    host: ${SFTP_HOST:localhost}
+    port: ${SFTP_PORT:22}
+    username: ${SFTP_USERNAME:user}
+    password: ${SFTP_PASSWORD:password}
+    remote-directory: ${SFTP_REMOTE_DIRECTORY:/incoming}
+    local-directory: ${SFTP_LOCAL_DIRECTORY:/tmp/sftp}
+    known-hosts-file: ${SFTP_KNOWN_HOSTS_FILE:~/.ssh/known_hosts}
+    strict-host-key-checking: ${SFTP_STRICT_HOST_KEY_CHECKING:true}
+  filters:
+    enabled: true
+  file-upload:
+    enabled: true
+    base-dir: ${FILE_UPLOAD_DIR:/Users/rahulcharvekar/Documents/Repos/LBE/PaymentReconciliation/clearing-service/uploads/dev/}
+
+# Payment Flow Service client configuration
+payment-flow:
+  service:
+    url: ${PAYMENT_FLOW_BASE_URL:http://localhost:8081}
+  internal:
+    api-key: ${PAYMENT_FLOW_INTERNAL_API_KEY:${INTERNAL_API_KEY:4f0d3ac5a91b7fe246d3851c09a2f718f6c8d42704e3b89a1f2d6c7b81e4f0a3}}
