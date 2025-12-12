@@ -10,10 +10,16 @@ spring:
     hikari:
       maximum-pool-size: 15
       minimum-idle: 5
-      idle-timeout: 600000 # 10 minutes
-      max-lifetime: 1800000 # 30 minutes
+      idle-timeout: 0               # keep connections warm when tunneling to RDS
+      max-lifetime: 1700000         # recycle a bit under 30 minutes
       connection-timeout: 30000 # 30 seconds
       auto-commit: true
+      data-source-properties:
+        preparedStatementCacheQueries: 256
+        preparedStatementCacheSizeMiB: 5
+        reWriteBatchedInserts: true
+        tcpKeepAlive: true
+      keepalive-time: 300000        # ping every 5 minutes to avoid idle drops
   jpa:
     hibernate:
       ddl-auto: none
