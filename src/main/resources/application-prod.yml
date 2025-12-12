@@ -184,7 +184,7 @@ shared-lib:
     enabled: true
   file-upload:
     enabled: true
-    base-dir: ${FILE_UPLOAD_DIR:/Users/rahulcharvekar/Documents/Repos/LBE/PaymentReconciliation/clearing-service/uploads/dev/}
+    base-dir: ${FILE_UPLOAD_DIR:/tmp/uploads}
 
 # Payment Flow Service client configuration
 payment-flow:
