@@ -5,9 +5,12 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 
 import org.slf4j.Logger;
 import org.springframework.data.domain.Page;
@@ -152,18 +155,50 @@ public class BankTransactionController {
             @RequestParam(name = "bankTxnId", required = false) Integer bankTxnId,
             @RequestParam(name = "txnRef", required = false) String txnRef,
             @RequestParam(name = "isSettled", required = false) Boolean isSettled,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(name = "startDate", required = false) String startDateRaw,
+            @RequestParam(name = "endDate", required = false) String endDateRaw,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "0") int page) {
         try {
             int safeSize = Math.max(1, Math.min(size, MAX_PAGE_SIZE));
-            java.util.List<BankTransaction> txns = searchService.findClearingTransactions(
-                    bankTxnId, txnRef, isSettled, safeSize);
-            return ResponseEntity.ok(txns);
+            int safePage = Math.max(0, page);
+            LocalDate startDate = parseDate(startDateRaw);
+            LocalDate endDate = parseDate(endDateRaw);
+            if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
+                return ResponseEntity.badRequest().body(Map.of("error", "startDate cannot be after endDate"));
+            }
+            Page<BankTransaction> txns = searchService.findClearingTransactions(
+                    bankTxnId, txnRef, isSettled, startDate, endDate, safePage, safeSize);
+            return ResponseEntity.ok(createPageResponse(txns));
         } catch (IllegalArgumentException | IllegalStateException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         } catch (Exception ex) {
             log.error("Failed to list clearing bank transactions", ex);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Unable to fetch clearing bank transactions right now"));
+        }
+    }
+
+    private Map<String, Object> createPageResponse(Page<BankTransaction> page) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("content", page.getContent());
+        response.put("currentPage", page.getNumber());
+        response.put("pageSize", page.getSize());
+        response.put("totalElements", page.getTotalElements());
+        response.put("totalPages", page.getTotalPages());
+        response.put("hasNext", page.hasNext());
+        response.put("hasPrevious", page.hasPrevious());
+        return response;
+    }
+
+    private LocalDate parseDate(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(raw.trim());
+        } catch (DateTimeParseException ex) {
+            throw new IllegalArgumentException("Invalid date format. Use YYYY-MM-DD.");
         }
     }
 

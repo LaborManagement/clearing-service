@@ -9,6 +9,7 @@ import com.shared.common.dao.TenantAccessDao;
 import com.shared.utilities.logger.LoggerFactoryProvider;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.slf4j.Logger;
 import org.springframework.data.domain.Page;
@@ -66,18 +67,22 @@ public class BankTransactionSearchService {
         return dao.search(criteria, limit);
     }
 
-    public List<BankTransaction> findClearingTransactions(
-            Integer bankTxnId, String txnRef, Boolean isSettled, int limit) {
+    public Page<BankTransaction> findClearingTransactions(
+            Integer bankTxnId, String txnRef, Boolean isSettled,
+            LocalDate startDate, LocalDate endDate, int page, int size) {
         TenantAccessDao.TenantAccess ta = tenantAccessDao.getFirstAccessibleTenant();
         if (ta == null || ta.boardId == null || ta.employerId == null) {
             throw new IllegalStateException("User has no tenant access (board/employer) to list bank transactions");
         }
-        int safeLimit = Math.max(1, Math.min(limit, 200));
-        Pageable pageable = PageRequest.of(0, safeLimit, Sort.by(Sort.Direction.DESC, "updatedAt"));
-        log.info("Fetching clearing bank transactions bankTxnId={}, txnRef={}, isSettled={}, boardId={}, employerId={}",
-                bankTxnId, txnRef, isSettled, ta.boardId, ta.employerId);
-        List<BankTransaction> txns = bankTransactionRepository.findByFilters(
-                ta.boardId, ta.employerId, bankTxnId, txnRef, isSettled, pageable);
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 200));
+        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "updatedAt"));
+        LocalDateTime startDateTime = startDate != null ? startDate.atStartOfDay() : null;
+        LocalDateTime endDateTime = endDate != null ? endDate.atTime(23, 59, 59) : null;
+        log.info("Fetching clearing bank transactions bankTxnId={}, txnRef={}, isSettled={}, boardId={}, employerId={}, page={}, size={}, startDate={}, endDate={}",
+                bankTxnId, txnRef, isSettled, ta.boardId, ta.employerId, safePage, safeSize, startDate, endDate);
+        Page<BankTransaction> txns = bankTransactionRepository.findByFilters(
+                ta.boardId, ta.employerId, bankTxnId, txnRef, isSettled, startDateTime, endDateTime, pageable);
         txns.forEach(txn -> txn.setStatusCode(statusService.resolveStatusCode("bank_transaction", txn.getStatusId())));
         return txns;
     }
