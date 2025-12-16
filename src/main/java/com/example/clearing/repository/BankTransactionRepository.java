@@ -1,37 +1,38 @@
 package com.example.clearing.repository;
 
-import com.example.clearing.domain.BankTransaction;
-import java.util.List;
+import java.time.LocalDate;
 import java.util.Optional;
-import java.time.LocalDateTime;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.example.clearing.domain.BankTransaction;
+
 public interface BankTransactionRepository extends JpaRepository<BankTransaction, Integer> {
 
-    Optional<BankTransaction> findBySourceSystemAndSourceTxnId(String sourceSystem, String sourceTxnId);
+        Optional<BankTransaction> findBySourceSystemAndSourceTxnId(String sourceSystem, String sourceTxnId);
 
-    @Query("""
-            SELECT b FROM BankTransaction b
-            WHERE b.boardId = :boardId
-              AND b.employerId = :employerId
-              AND (:bankTxnId IS NULL OR b.bankTxnId = :bankTxnId)
-              AND (:txnRef IS NULL OR b.txnRef = :txnRef)
-              AND (:isSettled IS NULL OR b.isSettled = :isSettled)
-              AND (:startDateTime IS NULL OR b.createdAt >= :startDateTime)
-              AND (:endDateTime IS NULL OR b.createdAt <= :endDateTime)
-            ORDER BY b.updatedAt DESC
-            """)
-    Page<BankTransaction> findByFilters(
-            @Param("boardId") Integer boardId,
-            @Param("employerId") Integer employerId,
-            @Param("bankTxnId") Integer bankTxnId,
-            @Param("txnRef") String txnRef,
-            @Param("isSettled") Boolean isSettled,
-            @Param("startDateTime") LocalDateTime startDateTime,
-            @Param("endDateTime") LocalDateTime endDateTime,
-            Pageable pageable);
+        @Query(value = """
+                        SELECT * FROM clearing.bank_transaction bt
+                        WHERE bt.board_id = :boardId
+                          AND bt.employer_id = :employerId
+                          AND (CAST(:bankTxnId AS INTEGER) IS NULL OR bt.bank_txn_id = CAST(:bankTxnId AS INTEGER))
+                          AND (CAST(:txnRef AS VARCHAR) IS NULL OR bt.txn_ref = CAST(:txnRef AS VARCHAR))
+                          AND (CAST(:isSettled AS BOOLEAN) IS NULL OR bt.is_settled = CAST(:isSettled AS BOOLEAN))
+                          AND (CAST(:startDate AS DATE) IS NULL OR CAST(bt.created_at AS DATE) >= CAST(:startDate AS DATE))
+                          AND (CAST(:endDate AS DATE) IS NULL OR CAST(bt.created_at AS DATE) <= CAST(:endDate AS DATE))
+                        ORDER BY bt.updated_at DESC
+                        """, nativeQuery = true)
+        Page<BankTransaction> findByFilters(
+                        @Param("boardId") Integer boardId,
+                        @Param("employerId") Integer employerId,
+                        @Param("bankTxnId") Integer bankTxnId,
+                        @Param("txnRef") String txnRef,
+                        @Param("isSettled") Boolean isSettled,
+                        @Param("startDate") LocalDate startDate,
+                        @Param("endDate") LocalDate endDate,
+                        Pageable pageable);
 }

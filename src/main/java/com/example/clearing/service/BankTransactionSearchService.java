@@ -1,5 +1,16 @@
 package com.example.clearing.service;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.example.clearing.dao.BankTransactionSearchDao;
 import com.example.clearing.domain.BankTransaction;
 import com.example.clearing.model.BankTransactionSearchCriteria;
@@ -7,17 +18,6 @@ import com.example.clearing.model.BankTransactionView;
 import com.example.clearing.repository.BankTransactionRepository;
 import com.shared.common.dao.TenantAccessDao;
 import com.shared.utilities.logger.LoggerFactoryProvider;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
-import org.slf4j.Logger;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
@@ -76,13 +76,13 @@ public class BankTransactionSearchService {
         }
         int safePage = Math.max(0, page);
         int safeSize = Math.max(1, Math.min(size, 200));
-        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "updatedAt"));
-        LocalDateTime startDateTime = startDate != null ? startDate.atStartOfDay() : null;
-        LocalDateTime endDateTime = endDate != null ? endDate.atTime(23, 59, 59) : null;
-        log.info("Fetching clearing bank transactions bankTxnId={}, txnRef={}, isSettled={}, boardId={}, employerId={}, page={}, size={}, startDate={}, endDate={}",
+        // Sort is already defined in the native SQL query, don't add it here
+        Pageable pageable = PageRequest.of(safePage, safeSize);
+        log.info(
+                "Fetching clearing bank transactions bankTxnId={}, txnRef={}, isSettled={}, boardId={}, employerId={}, page={}, size={}, startDate={}, endDate={}",
                 bankTxnId, txnRef, isSettled, ta.boardId, ta.employerId, safePage, safeSize, startDate, endDate);
         Page<BankTransaction> txns = bankTransactionRepository.findByFilters(
-                ta.boardId, ta.employerId, bankTxnId, txnRef, isSettled, startDateTime, endDateTime, pageable);
+                ta.boardId, ta.employerId, bankTxnId, txnRef, isSettled, startDate, endDate, pageable);
         txns.forEach(txn -> txn.setStatusCode(statusService.resolveStatusCode("bank_transaction", txn.getStatusId())));
         return txns;
     }
