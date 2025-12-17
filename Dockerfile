@@ -3,9 +3,6 @@
 # Supports: dev, staging, prod environments
 # Compatible with ARM64 (Apple Silicon) and AMD64
 # ============================================
-# For CI/CD: docker build -t clearing-service:latest .
-# For local: docker build -t clearing-service:latest .
-# ============================================
 
 # ==================== STAGE 1: Build ====================
 FROM maven:3.9-eclipse-temurin-17 AS builder
@@ -13,7 +10,6 @@ FROM maven:3.9-eclipse-temurin-17 AS builder
 WORKDIR /build
 
 # Copy shared-lib first (if present) and install it
-# In CI, shared-lib is checked out to ./shared-lib directory
 COPY shared-lib/pom.xml ./shared-lib/pom.xml
 COPY shared-lib/src ./shared-lib/src
 
@@ -60,9 +56,11 @@ RUN mkdir -p /app/logs /app/config /tmp && \
 # Create a volume for temporary files and logs
 VOLUME ["/tmp", "/app/logs"]
 
+# Copy the built jar from builder stage
+COPY --from=builder /build/target/*clearing-service-*.jar app.jar
 
-# Copy the built jar from builder stage and set ownership
-COPY --from=builder --chown=appuser:appgroup /build/target/user-clearing-service-*.jar app.jar
+# Change ownership of the jar
+RUN chown appuser:appgroup app.jar
 
 # Switch to non-root user
 USER appuser
