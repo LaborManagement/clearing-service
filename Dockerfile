@@ -60,11 +60,9 @@ RUN mkdir -p /app/logs /app/config /tmp && \
 # Create a volume for temporary files and logs
 VOLUME ["/tmp", "/app/logs"]
 
-# Copy the built jar from builder stage
-COPY --from=builder /build/target/user-clearing-service-*.jar app.jar
 
-# Change ownership of the jar
-RUN chown appuser:appgroup app.jar
+# Copy the built jar from builder stage and set ownership
+COPY --from=builder --chown=appuser:appgroup /build/target/user-clearing-service-*.jar app.jar
 
 # Switch to non-root user
 USER appuser
