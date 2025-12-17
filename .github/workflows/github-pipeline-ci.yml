@@ -1,6 +1,6 @@
 # ============================================
 # GitHub Actions Workflow: Build & Push to AWS ECR
-# Service: auth-service
+# Service: clearing-service
 # ============================================
 
 name: Build and Push to ECR
@@ -33,7 +33,7 @@ on:
 
 env:
   AWS_REGION: ap-south-1
-  ECR_REPOSITORY: lms/auth-service
+  ECR_REPOSITORY: lms/clearing-service
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:
@@ -45,7 +45,7 @@ jobs:
     environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod') || 'dev' }}
 
     permissions:
-      id-token: write # Required for OIDC authentication
+      id-token: write # Required for OIDC clearingentication
       contents: read
 
     steps:
