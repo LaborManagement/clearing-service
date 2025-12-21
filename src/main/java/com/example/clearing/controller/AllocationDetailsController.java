@@ -50,7 +50,7 @@ public class AllocationDetailsController {
     // Allowed sort fields for secure pagination
     private static final List<String> SECURE_SORT_FIELDS = List.of(
             "receiptDate", "voucherDate", "txnDate", "receiptAmount", "txnAmount", "allocatedAmountFromTxn",
-            "createdAt", "amount", "id");
+            "workerReceiptNumber", "createdAt", "amount", "id");
 
     private final AllocationDetailsService allocationDetailsService;
 

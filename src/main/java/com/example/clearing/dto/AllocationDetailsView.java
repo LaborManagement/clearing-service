@@ -21,6 +21,9 @@ public class AllocationDetailsView {
     @Schema(description = "Employer receipt number from payment allocation", example = "EMP-20251206-160818-106")
     private String employerReceiptNumber;
 
+    @Schema(description = "Worker receipt number linked to the employer receipt", example = "RCP-20251206-160818-106")
+    private String workerReceiptNumber;
+
     @Schema(description = "Receipt date from payment allocation", example = "2025-12-06")
     private LocalDate receiptDate;
 
@@ -53,7 +56,7 @@ public class AllocationDetailsView {
     }
 
     public AllocationDetailsView(String voucherNumber, LocalDate voucherDate,
-            String employerReceiptNumber, LocalDate receiptDate,
+            String employerReceiptNumber, String workerReceiptNumber, LocalDate receiptDate,
             BigDecimal receiptAmount, Long bankTxnId,
             String internalRef, String txnRef,
             BigDecimal txnAmount, BigDecimal allocatedAmountFromTxn,
@@ -61,6 +64,7 @@ public class AllocationDetailsView {
         this.voucherNumber = voucherNumber;
         this.voucherDate = voucherDate;
         this.employerReceiptNumber = employerReceiptNumber;
+        this.workerReceiptNumber = workerReceiptNumber;
         this.receiptDate = receiptDate;
         this.receiptAmount = receiptAmount;
         this.bankTxnId = bankTxnId;
@@ -95,6 +99,14 @@ public class AllocationDetailsView {
 
     public void setEmployerReceiptNumber(String employerReceiptNumber) {
         this.employerReceiptNumber = employerReceiptNumber;
+    }
+
+    public String getWorkerReceiptNumber() {
+        return workerReceiptNumber;
+    }
+
+    public void setWorkerReceiptNumber(String workerReceiptNumber) {
+        this.workerReceiptNumber = workerReceiptNumber;
     }
 
     public LocalDate getReceiptDate() {
@@ -175,6 +187,7 @@ public class AllocationDetailsView {
                 "voucherNumber='" + voucherNumber + '\'' +
                 ", voucherDate=" + voucherDate +
                 ", employerReceiptNumber='" + employerReceiptNumber + '\'' +
+                ", workerReceiptNumber='" + workerReceiptNumber + '\'' +
                 ", receiptDate=" + receiptDate +
                 ", receiptAmount=" + receiptAmount +
                 ", bankTxnId=" + bankTxnId +

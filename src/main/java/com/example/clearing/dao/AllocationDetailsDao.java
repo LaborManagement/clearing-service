@@ -74,6 +74,7 @@ public class AllocationDetailsDao {
                     c.voucher_number,
                     c.voucher_date,
                     p.employer_receipt_number,
+                    ep.worker_receipt_number,
                     p.receipt_date,
                     rs.total_amount AS receipt_amount,
                     p.bank_txn_id,
@@ -85,6 +86,7 @@ public class AllocationDetailsDao {
                     b.txn_date
                 FROM clearing.payment_allocation p
                 LEFT JOIN clearing.voucher_header c ON c.voucher_id = p.voucher_id
+                LEFT JOIN payment_flow.employer_payment_receipts ep ON ep.id = p.request_id
                 JOIN clearing.bank_transaction b ON p.bank_txn_id = b.bank_txn_id
                 JOIN clearing.request_settlement rs ON p.request_id = rs.request_id
                 WHERE p.board_id = :boardId
@@ -181,6 +183,7 @@ public class AllocationDetailsDao {
             case "voucherNumber" -> "c.voucher_number";
             case "voucherDate" -> "c.voucher_date";
             case "employerReceiptNumber" -> "p.employer_receipt_number";
+            case "workerReceiptNumber" -> "ep.worker_receipt_number";
             case "receiptDate" -> "p.receipt_date";
             case "receiptAmount" -> "rs.total_amount";
             case "txnDate" -> "b.txn_date";
@@ -206,6 +209,7 @@ public class AllocationDetailsDao {
             view.setVoucherDate(voucherDate != null ? voucherDate.toLocalDate() : null);
 
             view.setEmployerReceiptNumber(rs.getString("employer_receipt_number"));
+            view.setWorkerReceiptNumber(rs.getString("worker_receipt_number"));
 
             java.sql.Date receiptDate = rs.getDate("receipt_date");
             view.setReceiptDate(receiptDate != null ? receiptDate.toLocalDate() : null);
