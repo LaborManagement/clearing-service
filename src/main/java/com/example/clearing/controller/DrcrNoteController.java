@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/clearing/drcr-notes")
+@RequestMapping("/clearing-service/api/clearing/drcr-notes")
 @SecurityRequirement(name = "Bearer Authentication")
 public class DrcrNoteController {
 

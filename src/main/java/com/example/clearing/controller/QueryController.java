@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/clearing")
+@RequestMapping("/clearing-service/api/clearing")
 @SecurityRequirement(name = "Bearer Authentication")
 public class QueryController {
 

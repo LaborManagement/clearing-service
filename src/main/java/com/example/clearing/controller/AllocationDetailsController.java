@@ -40,7 +40,7 @@ import jakarta.validation.Valid;
  * bank transaction and request settlement data
  */
 @RestController
-@RequestMapping("/api/clearing/allocations")
+@RequestMapping("/clearing-service/api/clearing/allocations")
 @Tag(name = "Allocation Details", description = "APIs to query allocation details with voucher, payment allocation, bank transaction and settlement information")
 @SecurityRequirement(name = "Bearer Authentication")
 public class AllocationDetailsController {
