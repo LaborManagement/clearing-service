@@ -9,7 +9,7 @@ on:
 
 env:
   AWS_REGION: ap-south-1
-  TASK_FAMILY: lms-clearing-service-dev-task
+  TASK_FAMILY: lms-clearing-service-task
   ECR_REPO: 695546167399.dkr.ecr.ap-south-1.amazonaws.com/lms/clearing-service
   CONTAINER_NAME: dev-clearing-service
   ECS_CLUSTER: lms-services-dev
