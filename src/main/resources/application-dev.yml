@@ -89,12 +89,12 @@ shared-lib:
       - /swagger-ui.html
       - /error
     introspection:
-      url: http://localhost:8080/auth-service/internal/auth/introspect
+      url: http://ec2-3-110-92-54.ap-south-1.compute.amazonaws.com/auth-service/internal/auth/introspect
       api-key: ${INTERNAL_API_KEY:4f0d3ac5a91b7fe246d3851c09a2f718f6c8d42704e3b89a1f2d6c7b81e4f0a3}
       api-key-header: X-Internal-Api-Key
     dynamic-rbac:
       enabled: true
-      base-url: ${AUTH_BASE_URL:http://localhost:8080}
+      base-url: ${AUTH_BASE_URL:http://ec2-3-110-92-54.ap-south-1.compute.amazonaws.com}
       authorization-matrix-path: /auth-service/internal/authz/users/{userId}/matrix
       endpoint-metadata-path: /auth-service/internal/authz/endpoints/metadata
       policy-evaluation-path: /auth-service/internal/authz/policies/evaluate
@@ -130,6 +130,6 @@ server:
 
 payment-flow:
   service:
-    url: http://localhost:8081/payment-service # Adjust if the port is different
+    url: http://ec2-3-110-92-54.ap-south-1.compute.amazonaws.com/payment-service/payment-service # Adjust if the port is different
   internal:
     api-key: "d4e5f6a7-b8c9-1a2b-3c4d-e5f6a7b8c9d0-a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6" # Same key as in payment-flow-service
