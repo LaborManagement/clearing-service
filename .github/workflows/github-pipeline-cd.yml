@@ -1,11 +1,6 @@
 name: Deploy ECS Service - clearing
 
 on: 
-  push:
-    branches:
-      - master
-    paths:
-      - '**'
   workflow_dispatch: 
     inputs:
       image_tag:
@@ -18,7 +13,7 @@ env:
   ECR_REPO: 695546167399.dkr.ecr.ap-south-1.amazonaws.com/lms/clearing-service
   CONTAINER_NAME: dev-clearing-service
   ECS_CLUSTER: lms-services-dev
-  ECS_SERVICE: lms-clearing-service-dev-task-service-d4p5ubg2
+  ECS_SERVICE: lms-clearing-service-task-service-8vgp53ib
 
 jobs:
   deploy:
