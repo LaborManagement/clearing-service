@@ -1,123 +1,85 @@
-# Production configuration (container-friendly defaults)
+# Development environment configuration
 spring:
   datasource:
-    # url: ${DB_URL:jdbc:postgresql://paymentreconciliation.postgres.database.azure.com:5432/paymentreconciliation_prod?sslmode=require&currentSchema=clearing}
+    # RDS connection (override with DB_URL if needed)
+    #url: jdbc:postgresql://localhost:5432/lbe?currentSchema=clearing
     url: ${DB_URL:jdbc:postgresql://lbe-dbinstance.cd0sc0k82p15.ap-south-1.rds.amazonaws.com:5432/lbe?sslmode=require&currentSchema=clearing}
     driver-class-name: org.postgresql.Driver
     username: ${DB_USERNAME:app_clearing}
     password: ${DB_PASSWORD:root}
     hikari:
-      maximum-pool-size: 20
+      maximum-pool-size: 15
       minimum-idle: 5
-      idle-timeout: 300000
-      connection-timeout: 30000
-      max-lifetime: 1200000
-      leak-detection-threshold: 60000
-      connection-test-query: SELECT 1
+      idle-timeout: 0               # keep connections warm when tunneling to RDS
+      max-lifetime: 1700000         # recycle a bit under 30 minutes
+      connection-timeout: 30000 # 30 seconds
       auto-commit: true
+      data-source-properties:
+        preparedStatementCacheQueries: 256
+        preparedStatementCacheSizeMiB: 5
+        reWriteBatchedInserts: true
+        tcpKeepAlive: true
+      keepalive-time: 300000        # ping every 5 minutes to avoid idle drops
   jpa:
     hibernate:
-      ddl-auto: validate
-    show-sql: false
+      ddl-auto: none
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        "[format_sql]": false
-        jdbc:
-          "[batch_size]": 25
-          "[lob.non_contextual_creation]": true
-        "[order_inserts]": true
-        "[order_updates]": true
-        connection:
-          "[provider_disables_autocommit]": true
-  jackson:
-    serialization:
-      write-dates-as-timestamps: false
-    default-property-inclusion: NON_NULL
-  servlet:
-    multipart:
-      max-file-size: 200MB
-      max-request-size: 200MB
-  lifecycle:
-    timeout-per-shutdown-phase: 30s
-
-auditing:
-  enabled: true
+        default_schema: clearing
+        "[jdbc.lob.non_contextual_creation]": true
+app:
+  jwt:
+    secret: ${APP_JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+    issuer: ${APP_JWT_ISSUER:user-auth-service}
+    audience: ${APP_JWT_AUDIENCE:clearing-services}
+    allowed-audiences: ${APP_JWT_ALLOWED_AUDIENCES:clearing-services,payment-services}
+    expiration: ${APP_JWT_EXPIRATION:86400}
 
 logging:
   level:
-    "[com.example.clearing]": INFO
-    "[org.hibernate.SQL]": WARN
-    "[org.springframework.web]": WARN
-    root: INFO
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%logger{36}] - %msg%n"
+    "[com.example.clearing]": DEBUG
+    "[org.hibernate.SQL]": ${LOG_SQL_LEVEL:WARN}
+    "[org.hibernate.type.descriptor.sql.BasicBinder]": ${LOG_SQL_BINDER_LEVEL:WARN}
   file:
-    name: ${LOG_FILE:/tmp/logs/clearing-service.log}
-    max-size: 100MB
-    max-history: 7
-
-file:
-  upload:
-    base-dir: ${FILE_UPLOAD_DIR:/tmp/uploads}
+    name: logs/dev.log
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%logger{36}] [%X{sessionToken}] [%X{X-Request-ID}] - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%logger{36}] [%X{sessionToken}] [%X{X-Request-ID}] - %msg%n"
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
-      base-path: /actuator
-  endpoint:
-    health:
-      show-details: when-authorized
-      probes:
-        enabled: true
-    metrics:
-      enabled: true
-    prometheus:
-      enabled: true
-  health:
-    livenessstate:
-      enabled: true
-    readinessstate:
-      enabled: true
-  prometheus:
-    metrics:
-      export:
-        enabled: true
-  metrics:
-    tags:
-      application: ${spring.application.name}
-      environment: prod
-
-server:
-  port: ${SERVER_PORT:8083}
-  compression:
-    enabled: true
-    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
-    min-response-size: 1024
-  http2:
-    enabled: true
-  shutdown: graceful
-  tomcat:
-    threads:
-      max: 100
-      min-spare: 5
-    max-connections: 2048
-    accept-count: 50
-    connection-timeout: 20000
-    max-http-form-post-size: 200MB
-  forward-headers-strategy: framework
-
-app:
-  jwt:
-    secret: ${APP_JWT_SECRET:}
-    issuer: user-auth-service
-    audience: clearing-services
-    allowed-audiences: ${APP_JWT_ALLOWED_AUDIENCES:clearing-services,payment-services}
-    expiration: 86400
+        include: health,info,beans,env,metrics,loggers
 
 shared-lib:
+  audit:
+    enabled: true # Set to true to enable audit logging
+    table-name: audit.audit_event
+    service-name: clearing-service
+    source-schema: clearing
+    hashing-algorithm: SHA-256
+    initial-hash-value: 0000000000000000000000000000000000000000000000000000000000000000
+  entity-audit:
+    enabled: true # Enable entity-level auditing (requires DataSource)
+    table-name: audit.entity_audit_event
+    service-name: clearing-service
+    source-schema: clearing
+    hashing-algorithm: SHA-256
+    initial-hash-value: 0000000000000000000000000000000000000000000000000000000000000000
+  # SFTP Utility Configuration
+  sftp:
+    enabled: false # Set to true to enable SFTP operations
+    host: localhost
+    port: 22
+    username: user
+    password: password
+    remote-directory: /incoming
+    local-directory: /tmp/sftp
+    known-hosts-file: ~/.ssh/known_hosts
+    strict-host-key-checking: true
   security:
     enabled: true
     permitted-paths:
@@ -125,6 +87,7 @@ shared-lib:
       - /v3/api-docs/**
       - /swagger-ui/**
       - /swagger-ui.html
+      - /error
     introspection:
       url: ${AUTH_BASE_URL:http://lms-auth-service.internal:8080}/internal/auth/introspect
       api-key: ${INTERNAL_API_KEY:4f0d3ac5a91b7fe246d3851c09a2f718f6c8d42704e3b89a1f2d6c7b81e4f0a3}
@@ -132,8 +95,9 @@ shared-lib:
     dynamic-rbac:
       enabled: true
       base-url: ${AUTH_BASE_URL:http://lms-auth-service.internal:8080}
-      authorization-matrix-path: /internal/authz/users/{userId}/matrix
-      endpoint-metadata-path: /internal/authz/endpoints/metadata
+      authorization-matrix-path: /auth-service/internal/authz/users/{userId}/matrix
+      endpoint-metadata-path: /auth-service/internal/authz/endpoints/metadata
+      policy-evaluation-path: /auth-service/internal/authz/policies/evaluate
       api-key: ${INTERNAL_API_KEY:4f0d3ac5a91b7fe246d3851c09a2f718f6c8d42704e3b89a1f2d6c7b81e4f0a3}
       api-key-header: ${INTERNAL_API_KEY_HEADER:X-Internal-Api-Key}
       policy-evaluation-enabled: true
@@ -141,8 +105,8 @@ shared-lib:
     cors:
       enabled: true
       allowed-origins:
-        - ${ALLOWED_ORIGIN_1:http://localhost:5173}
-        - ${ALLOWED_ORIGIN_2:http://localhost:5174}
+        - http://localhost:5173
+        - http://localhost:5174
       allowed-methods:
         - GET
         - POST
@@ -154,41 +118,19 @@ shared-lib:
         - "*"
       allow-credentials: true
       max-age: 3600
-  audit:
-    enabled: true
-    table-name: audit.audit_event
-    service-name: clearing-service
-    source-schema: clearing
-    hashing-algorithm: SHA-256
-    initial-hash-value: 0000000000000000000000000000000000000000000000000000000000000000
-  entity-audit:
-    enabled: true
-    table-name: audit.entity_audit_event
-    service-name: clearing-service
-    source-schema: clearing
-    source-table: clearing_records
-    hashing-algorithm: SHA-256
-    initial-hash-value: 0000000000000000000000000000000000000000000000000000000000000000
-  # SFTP Utility Configuration
-  sftp:
-    enabled: false
-    host: ${SFTP_HOST:localhost}
-    port: ${SFTP_PORT:22}
-    username: ${SFTP_USERNAME:user}
-    password: ${SFTP_PASSWORD:password}
-    remote-directory: ${SFTP_REMOTE_DIRECTORY:/incoming}
-    local-directory: ${SFTP_LOCAL_DIRECTORY:/tmp/sftp}
-    known-hosts-file: ${SFTP_KNOWN_HOSTS_FILE:~/.ssh/known_hosts}
-    strict-host-key-checking: ${SFTP_STRICT_HOST_KEY_CHECKING:true}
+
   filters:
     enabled: true
   file-upload:
     enabled: true
-    base-dir: ${FILE_UPLOAD_DIR:/tmp/uploads}
+    base-dir: /Users/rahulcharvekar/Documents/Repos/LBE/PaymentReconciliation/clearing-service/uploads/dev/
 
-# Payment Flow Service client configuration
+server:
+  port: 8083
+
 payment-flow:
   service:
-    url: ${PAYMENT_FLOW_BASE_URL:http://lms-payment-flow-service.internal:8081}
+    url: http://ec2-3-110-92-54.ap-south-1.compute.amazonaws.com/payment-service/payment-service # Adjust if the port is different
   internal:
-    api-key: ${PAYMENT_FLOW_INTERNAL_API_KEY:${INTERNAL_API_KEY:4f0d3ac5a91b7fe246d3851c09a2f718f6c8d42704e3b89a1f2d6c7b81e4f0a3}}
+    api-key: "d4e5f6a7-b8c9-1a2b-3c4d-e5f6a7b8c9d0-a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6" # Same key as in payment-flow-service
+
