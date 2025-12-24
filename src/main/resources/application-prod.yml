@@ -126,12 +126,12 @@ shared-lib:
       - /swagger-ui/**
       - /swagger-ui.html
     introspection:
-      url: ${AUTH_SERVICE_BASE_URL:http://localhost:8080}/internal/auth/introspect
+      url: ${AUTH_BASE_URL:http://lms-auth-service.internal:8080}/internal/auth/introspect
       api-key: ${INTERNAL_API_KEY:4f0d3ac5a91b7fe246d3851c09a2f718f6c8d42704e3b89a1f2d6c7b81e4f0a3}
       api-key-header: X-Internal-Api-Key
     dynamic-rbac:
       enabled: true
-      base-url: ${AUTH_BASE_URL:http://localhost:8080}
+      base-url: ${AUTH_BASE_URL:http://lms-auth-service.internal:8080}
       authorization-matrix-path: /internal/authz/users/{userId}/matrix
       endpoint-metadata-path: /internal/authz/endpoints/metadata
       api-key: ${INTERNAL_API_KEY:4f0d3ac5a91b7fe246d3851c09a2f718f6c8d42704e3b89a1f2d6c7b81e4f0a3}
@@ -189,6 +189,6 @@ shared-lib:
 # Payment Flow Service client configuration
 payment-flow:
   service:
-    url: ${PAYMENT_FLOW_BASE_URL:http://localhost:8081}
+    url: ${PAYMENT_FLOW_BASE_URL:http://lms-payment-flow-service.internal:8081}
   internal:
     api-key: ${PAYMENT_FLOW_INTERNAL_API_KEY:${INTERNAL_API_KEY:4f0d3ac5a91b7fe246d3851c09a2f718f6c8d42704e3b89a1f2d6c7b81e4f0a3}}
