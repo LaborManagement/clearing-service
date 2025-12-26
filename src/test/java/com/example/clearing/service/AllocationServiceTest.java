@@ -12,6 +12,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.example.clearing.client.PaymentFlowClient;
 import com.example.clearing.domain.BankTransaction;
 import com.example.clearing.domain.PaymentAllocation;
 import com.example.clearing.domain.RequestSettlement;
@@ -57,6 +58,9 @@ class AllocationServiceTest {
     @Mock
     private SettlementService settlementService;
 
+    @Mock
+    private PaymentFlowClient paymentFlowClient;
+
     private AllocationService allocationService;
     private final Map<Integer, BankTransaction> bankTxnStore = new HashMap<>();
     private final Map<Long, RequestSettlement> settlementStore = new HashMap<>();
@@ -92,6 +96,8 @@ class AllocationServiceTest {
         lenient().when(paymentAllocationRepository.findByRequestIdAndBankTxnId(anyLong(), anyInt()))
                 .thenAnswer(invocation -> Optional.ofNullable(allocationPairs
                         .get(pairKey(invocation.getArgument(0), invocation.getArgument(1)))));
+        lenient().when(paymentAllocationRepository.findByRequestIdAndVoucherIdIsNull(anyLong()))
+                .thenReturn(List.of());
         lenient().when(paymentAllocationRepository.save(any())).thenAnswer(invocation -> {
             PaymentAllocation allocation = invocation.getArgument(0);
             allocation.setAllocationId(allocationCounter.incrementAndGet());
@@ -113,7 +119,8 @@ class AllocationServiceTest {
                 requestSettlementRepository,
                 statusService,
                 tenantAccessDao,
-                settlementService);
+                settlementService,
+                paymentFlowClient);
     }
 
     @Test
@@ -191,6 +198,26 @@ class AllocationServiceTest {
         assertEquals(
                 "Insufficient funds on bank transaction 321: remaining 25.00, requested 30.00",
                 ex.getMessage());
+    }
+
+    @Test
+    void updatesPaymentFlowStatusToPartialWhenRemainingAmountExists() {
+        bankTxnStore.put(123, createBankTransaction(123, new BigDecimal("500")));
+
+        allocationService.createAllocations(List.of(
+                createRequest(1L, 123, new BigDecimal("500"), new BigDecimal("100"))));
+
+        verify(paymentFlowClient, times(1)).updatePaymentStatusById(1L, 4L);
+    }
+
+    @Test
+    void updatesPaymentFlowStatusToReconciledWhenFullyAllocated() {
+        bankTxnStore.put(124, createBankTransaction(124, new BigDecimal("150")));
+
+        allocationService.createAllocations(List.of(
+                createRequest(2L, 124, new BigDecimal("150"), new BigDecimal("150"))));
+
+        verify(paymentFlowClient, times(1)).updatePaymentStatusById(2L, 5L);
     }
 
     private AllocationRequest createRequest(Long requestId, Integer bankTxnId, BigDecimal requestedAmount,

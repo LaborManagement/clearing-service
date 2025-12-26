@@ -10,6 +10,7 @@ import java.util.Optional;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
+import com.example.clearing.client.PaymentFlowClient;
 import com.example.clearing.domain.BankTransaction;
 import com.example.clearing.domain.PaymentAllocation;
 import com.example.clearing.domain.RequestSettlement;
@@ -21,11 +22,15 @@ import com.example.clearing.repository.BankTransactionRepository;
 import com.example.clearing.repository.PaymentAllocationRepository;
 import com.example.clearing.repository.RequestSettlementRepository;
 import com.shared.common.dao.TenantAccessDao;
+import com.shared.utilities.logger.LoggerFactoryProvider;
 
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
 
 @Service
 public class AllocationService {
+
+    private static final Logger log = LoggerFactoryProvider.getLogger(AllocationService.class);
 
     private static final String STATUS_TYPE_ALLOCATION = "payment_allocation";
     private static final String STATUS_CODE_ALLOCATED = "ALLOCATED";
@@ -34,6 +39,8 @@ public class AllocationService {
     private static final int STATUS_ID_ALLOCATED_TXN = 2;
     private static final int STATUS_ID_SETTLED_TXN = 3;
     private static final String STATUS_TYPE_REQUEST_SETTLEMENT = "request_settlement";
+    private static final long PAYMENT_FLOW_STATUS_PARTIAL = 4L;
+    private static final long PAYMENT_FLOW_STATUS_RECONCILED = 5L;
 
     private final BankTransactionRepository bankTransactionRepository;
     private final PaymentAllocationRepository paymentAllocationRepository;
@@ -41,6 +48,7 @@ public class AllocationService {
     private final StatusService statusService;
     private final TenantAccessDao tenantAccessDao;
     private final SettlementService settlementService;
+    private final PaymentFlowClient paymentFlowClient;
     private final int statusIdAllocatedAllocation;
     private final int statusIdSettledAllocation;
     private final int statusIdAllocatedRequestSettlement;
@@ -52,13 +60,15 @@ public class AllocationService {
             RequestSettlementRepository requestSettlementRepository,
             StatusService statusService,
             TenantAccessDao tenantAccessDao,
-            SettlementService settlementService) {
+            SettlementService settlementService,
+            PaymentFlowClient paymentFlowClient) {
         this.bankTransactionRepository = bankTransactionRepository;
         this.paymentAllocationRepository = paymentAllocationRepository;
         this.requestSettlementRepository = requestSettlementRepository;
         this.statusService = statusService;
         this.tenantAccessDao = tenantAccessDao;
         this.settlementService = settlementService;
+        this.paymentFlowClient = paymentFlowClient;
         this.statusIdAllocatedAllocation = statusService.requireStatusId(STATUS_TYPE_ALLOCATION, STATUS_CODE_ALLOCATED);
         this.statusIdSettledAllocation = statusService.requireStatusId(STATUS_TYPE_ALLOCATION, STATUS_CODE_SETTLED);
         this.statusIdAllocatedRequestSettlement = statusService.requireStatusId(
@@ -169,6 +179,7 @@ public class AllocationService {
 
         PaymentAllocation saved = paymentAllocationRepository.save(allocation);
         RequestSettlement rs = updateRequestSettlement(request, amount, tenantAccess, now);
+        syncPaymentFlowStatus(rs);
         autoFinalizeIfSettled(rs, tenantAccess);
         return toResponse(saved, txn);
     }
@@ -247,6 +258,21 @@ public class AllocationService {
         settlementRequest.setAllocations(allocations);
 
         settlementService.processSettlement(settlementRequest);
+    }
+
+    private void syncPaymentFlowStatus(RequestSettlement rs) {
+        if (rs == null || rs.getRequestId() == null) {
+            return;
+        }
+        Long statusId = rs.getRemainingAmount() != null
+                && rs.getRemainingAmount().compareTo(BigDecimal.ZERO) == 0
+                        ? PAYMENT_FLOW_STATUS_RECONCILED
+                        : PAYMENT_FLOW_STATUS_PARTIAL;
+        try {
+            paymentFlowClient.updatePaymentStatusById(rs.getRequestId(), statusId);
+        } catch (Exception ex) {
+            log.error("Failed to update payment-flow status for requestId {} to {}", rs.getRequestId(), statusId, ex);
+        }
     }
 
     private AllocationResponse toResponse(PaymentAllocation allocation, BankTransaction txn) {
